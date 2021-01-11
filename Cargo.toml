@@ -1,0 +1,14 @@
+[package]
+name = "destream"
+version = "0.1.0"
+authors = ["haydnv"]
+edition = "2018"
+license-file = "LICENSE"
+description = "Library for async steam (de)serialization"
+repository = "http://github.com/haydnv/destream"
+readme = "README.md"
+
+categories = ["asynchronous", "encoding", "parsing", "rust-patterns"]
+keywords = ["json", "stream", "streaming", "serialize", "deserialize"]
+
+[dependencies]
