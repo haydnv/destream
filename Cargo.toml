@@ -12,3 +12,6 @@ categories = ["asynchronous", "encoding", "parsing", "rust-patterns"]
 keywords = ["json", "stream", "streaming", "serialize", "deserialize"]
 
 [dependencies]
+async-trait = "0.1"
+futures = "0.3"
+serde = "1.0"
