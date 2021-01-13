@@ -231,20 +231,20 @@ decode_seq!(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct TupleVisitor<T> {
+struct ArrayVisitor<T> {
     marker: PhantomData<T>,
 }
 
-impl<T> TupleVisitor<T> {
+impl<T> ArrayVisitor<T> {
     fn new() -> Self {
-        TupleVisitor {
+        ArrayVisitor {
             marker: PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl<T: FromStream> Visitor for TupleVisitor<[T; 0]> {
+impl<T: FromStream> Visitor for ArrayVisitor<[T; 0]> {
     type Value = [T; 0];
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -263,7 +263,7 @@ impl<T: FromStream> Visitor for TupleVisitor<[T; 0]> {
 #[async_trait]
 impl<T: FromStream> FromStream for [T; 0] {
     async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, <D as Decoder>::Error> {
-        decoder.decode_tuple(0, TupleVisitor::<[T; 0]>::new()).await
+        decoder.decode_tuple(0, ArrayVisitor::<[T; 0]>::new()).await
     }
 }
 
@@ -271,7 +271,7 @@ macro_rules! array_impls {
     ($($len:expr => ($($n:tt)+))+) => {
         $(
             #[async_trait]
-            impl<T: FromStream> Visitor for TupleVisitor<[T; $len]> {
+            impl<T: FromStream> Visitor for ArrayVisitor<[T; $len]> {
                 type Value = [T; $len];
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -291,7 +291,7 @@ macro_rules! array_impls {
             #[async_trait]
             impl<T: FromStream> FromStream for [T; $len] {
                 async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
-                    decoder.decode_tuple($len, TupleVisitor::<[T; $len]>::new()).await
+                    decoder.decode_tuple($len, ArrayVisitor::<[T; $len]>::new()).await
                 }
             }
         )+
@@ -331,6 +331,65 @@ array_impls! {
     30 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29)
     31 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)
     32 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+macro_rules! tuple_impls {
+    ($($len:tt => ($($n:tt $name:ident)+))+) => {
+        $(
+            #[async_trait]
+            impl<$($name: FromStream),+> FromStream for ($($name,)+) {
+                async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+                    struct TupleVisitor<$($name,)+> {
+                        marker: PhantomData<($($name,)+)>,
+                    }
+
+                    #[async_trait]
+                    #[allow(non_snake_case)]
+                    impl<$($name: FromStream),+> Visitor for TupleVisitor<$($name,)+> {
+                        type Value = ($($name,)+);
+
+                        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                            formatter.write_str(concat!("a tuple of size ", $len))
+                        }
+
+                        async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                            $(
+                                let $name = match seq.next_element().await? {
+                                    Some(value) => value,
+                                    None => return Err(Error::invalid_length($n, &self)),
+                                };
+                            )+
+
+                            Ok(($($name,)+))
+                        }
+                    }
+
+                    decoder.decode_tuple($len, TupleVisitor { marker: PhantomData }).await
+                }
+            }
+        )+
+    }
+}
+
+tuple_impls! {
+    1  => (0 T0)
+    2  => (0 T0 1 T1)
+    3  => (0 T0 1 T1 2 T2)
+    4  => (0 T0 1 T1 2 T2 3 T3)
+    5  => (0 T0 1 T1 2 T2 3 T3 4 T4)
+    6  => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5)
+    7  => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6)
+    8  => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7)
+    9  => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8)
+    10 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9)
+    11 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10)
+    12 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11)
+    13 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12)
+    14 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13)
+    15 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14)
+    16 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14 15 T15)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
