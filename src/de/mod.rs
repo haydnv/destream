@@ -283,6 +283,7 @@ pub trait Visitor: Send + Sized {
     /// The input contains a boolean.
     ///
     /// The default implementation fails with a type error.
+    #[inline]
     fn visit_bool<E: Error>(self, v: bool) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -292,6 +293,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_i64`].
     ///
     /// [`visit_i64`]: #method.visit_i64
+    #[inline]
     fn visit_i8<E: Error>(self, v: i8) -> Result<Self::Value, E> {
         self.visit_i64(v as i64)
     }
@@ -301,6 +303,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_i64`].
     ///
     /// [`visit_i64`]: #method.visit_i64
+    #[inline]
     fn visit_i16<E: Error>(self, v: i16) -> Result<Self::Value, E> {
         self.visit_i64(v as i64)
     }
@@ -310,6 +313,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_i64`].
     ///
     /// [`visit_i64`]: #method.visit_i64
+    #[inline]
     fn visit_i32<E: Error>(self, v: i32) -> Result<Self::Value, E> {
         self.visit_i64(v as i64)
     }
@@ -317,6 +321,7 @@ pub trait Visitor: Send + Sized {
     /// The input contains an `i64`.
     ///
     /// The default implementation fails with a type error.
+    #[inline]
     fn visit_i64<E: Error>(self, v: i64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -326,6 +331,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_u64`].
     ///
     /// [`visit_u64`]: #method.visit_u64
+    #[inline]
     fn visit_u8<E: Error>(self, v: u8) -> Result<Self::Value, E> {
         self.visit_u64(v as u64)
     }
@@ -335,6 +341,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_u64`].
     ///
     /// [`visit_u64`]: #method.visit_u64
+    #[inline]
     fn visit_u16<E: Error>(self, v: u16) -> Result<Self::Value, E> {
         self.visit_u64(v as u64)
     }
@@ -344,6 +351,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_u64`].
     ///
     /// [`visit_u64`]: #method.visit_u64
+    #[inline]
     fn visit_u32<E: Error>(self, v: u32) -> Result<Self::Value, E> {
         self.visit_u64(v as u64)
     }
@@ -351,6 +359,7 @@ pub trait Visitor: Send + Sized {
     /// The input contains a `u64`.
     ///
     /// The default implementation fails with a type error.
+    #[inline]
     fn visit_u64<E: Error>(self, v: u64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -360,6 +369,7 @@ pub trait Visitor: Send + Sized {
     /// The default implementation forwards to [`visit_f64`].
     ///
     /// [`visit_f64`]: #method.visit_f64
+    #[inline]
     fn visit_f32<E: Error>(self, v: f32) -> Result<Self::Value, E> {
         self.visit_f64(v as f64)
     }
@@ -367,6 +377,7 @@ pub trait Visitor: Send + Sized {
     /// The input contains an `f64`.
     ///
     /// The default implementation fails with a type error.
+    #[inline]
     fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
