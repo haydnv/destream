@@ -1,6 +1,8 @@
 use std::fmt;
+use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use futures::future::TryFutureExt;
 
 use super::{Decoder, Error, FromStream, Visitor};
 
@@ -41,3 +43,37 @@ autodecode!(u64, visit_u64, decode_u64);
 autodecode!(f32, visit_f32, decode_f32);
 autodecode!(f64, visit_f64, decode_f64);
 autodecode!(String, visit_string, decode_string);
+
+struct OptionVisitor<T> {
+    marker: PhantomData<T>,
+}
+
+#[async_trait]
+impl<T: FromStream> Visitor for OptionVisitor<T> {
+    type Value = Option<T>;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "optional {}", std::any::type_name::<T>())
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(None)
+    }
+
+    async fn visit_some<D: Decoder>(self, decoder: &mut D) -> Result<Self::Value, D::Error> {
+        T::from_stream(decoder).map_ok(Some).await
+    }
+}
+
+#[async_trait]
+impl<T: FromStream> FromStream for Option<T> {
+    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+        let visitor = OptionVisitor {
+            marker: PhantomData,
+        };
+        decoder.decode_option(visitor).await
+    }
+}

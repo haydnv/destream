@@ -398,8 +398,7 @@ pub trait Visitor: Send + Sized {
 
     /// The input contains an optional that is present.
     /// The default implementation fails with a type error.
-    #[inline]
-    fn visit_some<D: Decoder>(self, _decoder: D) -> Result<Self::Value, D::Error> {
+    async fn visit_some<D: Decoder>(self, _decoder: &mut D) -> Result<Self::Value, D::Error> {
         Err(Error::invalid_type("Option::Some", &self))
     }
 
