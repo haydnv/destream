@@ -20,6 +20,7 @@ macro_rules! autodecode {
                         formatter.write_str(stringify!($ty))
                     }
 
+                    #[inline]
                     fn $visit_method<E: Error>(self, v: $ty) -> Result<Self::Value, E> {
                         Ok(v)
                     }
@@ -44,6 +45,8 @@ autodecode!(f32, visit_f32, decode_f32);
 autodecode!(f64, visit_f64, decode_f64);
 autodecode!(String, visit_string, decode_string);
 
+////////////////////////////////////////////////////////////////////////////////
+
 struct OptionVisitor<T> {
     marker: PhantomData<T>,
 }
@@ -56,6 +59,15 @@ impl<T: FromStream> Visitor for OptionVisitor<T> {
         write!(f, "optional {}", std::any::type_name::<T>())
     }
 
+    #[inline]
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(None)
+    }
+
+    #[inline]
     fn visit_none<E>(self) -> Result<Self::Value, E>
     where
         E: Error,
@@ -75,5 +87,35 @@ impl<T: FromStream> FromStream for Option<T> {
             marker: PhantomData,
         };
         decoder.decode_option(visitor).await
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct PhantomDataVisitor<T: ?Sized> {
+    marker: PhantomData<T>,
+}
+
+impl<T: Send + ?Sized> Visitor for PhantomDataVisitor<T> {
+    type Value = PhantomData<T>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("unit")
+    }
+
+    #[inline]
+    fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
+        Ok(PhantomData)
+    }
+}
+
+#[async_trait]
+impl<T: Send + ?Sized> FromStream for PhantomData<T> {
+    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+        let visitor = PhantomDataVisitor {
+            marker: PhantomData,
+        };
+
+        decoder.decode_unit_struct("PhantomData", visitor).await
     }
 }

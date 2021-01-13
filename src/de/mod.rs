@@ -174,6 +174,13 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting a sequence of values.
     async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
+    /// Hint that the `FromStream` type is expecting a unit struct with a particular name.
+    async fn decode_unit_struct<V: Visitor>(
+        &mut self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>;
+
     /// Hint that the `FromStream` type is expecting a sequence of values and
     /// knows how many values there are without looking at the serialized data.
     async fn decode_tuple<V: Visitor>(
@@ -283,7 +290,6 @@ pub trait Visitor: Send + Sized {
     /// The input contains a boolean.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_bool<E: Error>(self, v: bool) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -321,7 +327,6 @@ pub trait Visitor: Send + Sized {
     /// The input contains an `i64`.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_i64<E: Error>(self, v: i64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -377,7 +382,6 @@ pub trait Visitor: Send + Sized {
     /// The input contains an `f64`.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -386,7 +390,6 @@ pub trait Visitor: Send + Sized {
     /// to the `Visitor`.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
@@ -395,14 +398,19 @@ pub trait Visitor: Send + Sized {
     /// given to the `Visitor`.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_byte_buf<E: Error>(self, _v: Vec<u8>) -> Result<Self::Value, E> {
         Err(Error::invalid_type("(byte array)", &self))
     }
 
+    /// The input contains a unit `()`.
+    ///
+    /// The default implementation fails with a type error.
+    fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
+        Err(Error::invalid_type("unit", &self))
+    }
+
     /// The input contains an optional that is absent.
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_none<E: Error>(self) -> Result<Self::Value, E> {
         Err(Error::invalid_type("Option::None", &self))
     }
