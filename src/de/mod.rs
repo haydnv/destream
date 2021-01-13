@@ -4,6 +4,15 @@ use async_trait::async_trait;
 
 mod impls;
 
+mod size_hint {
+    use std::cmp;
+
+    #[inline]
+    pub fn cautious(hint: Option<usize>) -> usize {
+        cmp::min(hint.unwrap_or(0), 4096)
+    }
+}
+
 /// `Expected` represents an explanation of what data a `Visitor` was expecting to receive.
 ///
 /// This is used as an argument to the `invalid_type`, `invalid_value`, and
@@ -423,13 +432,13 @@ pub trait Visitor: Send + Sized {
 
     /// The input contains a key-value map.
     /// The default implementation fails with a type error.
-    async fn visit_map<A: MapAccess, E: Error>(self, _map: A) -> Result<Self::Value, E> {
+    async fn visit_map<A: MapAccess>(self, _map: A) -> Result<Self::Value, A::Error> {
         Err(Error::invalid_type("map", &self))
     }
 
     /// The input contains a sequence of elements.
     /// The default implementation fails with a type error.
-    async fn visit_seq<A: SeqAccess, E: Error>(self, _seq: A) -> Result<Self::Value, E> {
+    async fn visit_seq<A: SeqAccess>(self, _seq: A) -> Result<Self::Value, A::Error> {
         Err(Error::invalid_type("sequence", &self))
     }
 }
