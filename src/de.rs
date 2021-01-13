@@ -110,9 +110,6 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting a `f64` value.
     async fn decode_f64<V: Visitor>(self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the `FromStream` type is expecting a `char` value.
-    async fn decode_char<V: Visitor>(self, visitor: V) -> Result<V::Value, Self::Error>;
-
     /// Hint that the `FromStream` type is expecting a string value.
     async fn decode_string<V: Visitor>(self, visitor: V) -> Result<V::Value, Self::Error>;
 
@@ -131,7 +128,11 @@ pub trait Decoder: Send {
 
     /// Hint that the `FromStream` type is expecting a sequence of values and
     /// knows how many values there are without looking at the serialized data.
-    async fn decode_tuple<V: Visitor>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>;
+    async fn decode_tuple<V: Visitor>(
+        self,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a map of key-value pairs.
     async fn decode_map<V: Visitor>(self, visitor: V) -> Result<V::Value, Self::Error>;
@@ -151,12 +152,57 @@ pub trait Decoder: Send {
 /// This trait describes a value which can be decoded from a stream.
 ///
 /// Based on [`serde::de::Deserialize`].
-pub trait FromStream: Sized {
-    type Chunk;
-    type Error;
+pub trait FromStream<S: Stream>: Send + Sized {
+    type Error: Error;
 
     /// Parse the given stream asynchronously.
-    async fn from_stream<S: Stream<Item = Self::Chunk>>(source: S) -> Result<Self, Self::Error>;
+    async fn from_stream(source: S) -> Result<Self, Self::Error>;
+}
+
+/// Provides a `Visitor` access to each entry of a map in the input.
+///
+/// This is a trait that a `Decoder` passes to a `Visitor` implementation.
+#[async_trait]
+pub trait MapAccess: Send {
+    /// Type to return in case of a decoding error.
+    type Error: Error;
+
+    /// Type of stream to forward for decoding.
+    type Stream: Stream;
+
+    /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
+    /// if there are no more remaining entries.
+    async fn next_key<K: FromStream<Self::Stream, Error = Self::Error>>(
+        &mut self,
+    ) -> Result<Option<K>, Self::Error>;
+
+    /// This returns a `Ok(value)` for the next value in the map.
+    ///
+    /// # Panics
+    ///
+    /// Calling `next_value` before `next_key` is incorrect and is allowed to
+    /// panic or return bogus results.
+    async fn next_value<V: FromStream<Self::Stream, Error = Self::Error>>(
+        &mut self,
+    ) -> Result<V, V::Error>;
+
+    /// This returns `Ok(Some((key, value)))` for the next (key-value) pair in
+    /// the map, or `Ok(None)` if there are no more remaining items.
+    ///
+    /// This method exists as a convenience for `Deserialize` implementations.
+    /// `MapAccess` implementations should not override the default behavior.
+    async fn next_entry<
+        K: FromStream<Self::Stream, Error = Self::Error>,
+        V: FromStream<Self::Stream, Error = Self::Error>,
+    >(
+        &mut self,
+    ) -> Result<Option<(K, V)>, Self::Error>;
+
+    /// Returns the number of entries remaining in the map, if known.
+    #[inline]
+    fn size_hint(&self) -> Option<usize> {
+        None
+    }
 }
 
 /// Provides a `Visitor` access to each element of a sequence in the input.
@@ -166,49 +212,20 @@ pub trait FromStream: Sized {
 ///
 /// Based on [`serde::de::SeqAccess`].
 #[async_trait]
-pub trait SeqAccess {
+pub trait SeqAccess: Send {
     /// The type to return if decoding encounters an error.
     type Error: Error;
 
+    /// Type of stream to forward for decoding.
+    type Stream: Stream;
+
     /// Returns `Ok(Some(value))` for the next value in the sequence,
     /// or `Ok(None)` if there are no more remaining items.
-    async fn next_element<T: FromStream>(&mut self) -> Result<Option<T>, Self::Error>;
+    async fn next_element<T: FromStream<Self::Stream, Error = Self::Error>>(
+        &mut self,
+    ) -> Result<Option<T>, Self::Error>;
 
     /// Returns the number of elements remaining in the sequence, if known.
-    #[inline]
-    fn size_hint(&self) -> Option<usize> {
-        None
-    }
-}
-
-/// Provides a `Visitor` access to each entry of a map in the input.
-///
-/// This is a trait that a `Decoder` passes to a `Visitor` implementation.
-#[async_trait]
-pub trait MapAccess {
-    /// Type to return in case of a decoding error.
-    type Error: Error;
-
-    /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
-    /// if there are no more remaining entries.
-    async fn next_key<K: FromStream>(&mut self) -> Result<Option<K>, Self::Error>;
-
-    /// This returns a `Ok(value)` for the next value in the map.
-    ///
-    /// # Panics
-    ///
-    /// Calling `next_value` before `next_key` is incorrect and is allowed to
-    /// panic or return bogus results.
-    async fn next_value<V: FromStream>(&mut self) -> Result<V, Self::Error>;
-
-    /// This returns `Ok(Some((key, value)))` for the next (key-value) pair in
-    /// the map, or `Ok(None)` if there are no more remaining items.
-    ///
-    /// This method exists as a convenience for `Deserialize` implementations.
-    /// `MapAccess` implementations should not override the default behavior.
-    async fn next_entry<K: FromStream, V: FromStream>(&mut self) -> Result<Option<(K, V)>, Self::Error>;
-
-    /// Returns the number of entries remaining in the map, if known.
     #[inline]
     fn size_hint(&self) -> Option<usize> {
         None
@@ -218,6 +235,7 @@ pub trait MapAccess {
 /// This trait describes a visitor responsible for decoding a stream.
 ///
 /// Based on [`serde::de::Visitor`].
+#[async_trait]
 pub trait Visitor: fmt::Display + Send + Sized {
     /// The type which this `Visitor` is responsible for decoding.
     type Value;
@@ -353,15 +371,15 @@ pub trait Visitor: fmt::Display + Send + Sized {
         Err(Error::invalid_type("Option::Some", &self))
     }
 
-    /// The input contains a sequence of elements.
-    /// The default implementation fails with a type error.
-    fn visit_seq<S: SeqAccess>(self, _seq: S) -> Result<Self::Value, S::Error> {
-        Err(Error::invalid_type("sequence", &self))
-    }
-
     /// The input contains a key-value map.
     /// The default implementation fails with a type error.
-    fn visit_map<M: MapAccess>(self, _map: M) -> Result<Self::Value, M::Error> {
+    async fn visit_map<A: MapAccess, E: Error>(self, _map: A) -> Result<Self::Value, E> {
         Err(Error::invalid_type("map", &self))
+    }
+
+    /// The input contains a sequence of elements.
+    /// The default implementation fails with a type error.
+    async fn visit_seq<A: SeqAccess, E: Error>(self, _seq: A) -> Result<Self::Value, E> {
+        Err(Error::invalid_type("sequence", &self))
     }
 }
