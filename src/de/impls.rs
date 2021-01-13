@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use futures::future::TryFutureExt;
 
 use super::size_hint;
-use super::{Decoder, Error, FromStream, SeqAccess, Visitor};
+use super::{Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
 
 macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
@@ -267,7 +267,7 @@ impl<T: FromStream> FromStream for [T; 0] {
     }
 }
 
-macro_rules! array_impls {
+macro_rules! decode_array {
     ($($len:expr => ($($n:tt)+))+) => {
         $(
             #[async_trait]
@@ -298,7 +298,7 @@ macro_rules! array_impls {
     }
 }
 
-array_impls! {
+decode_array! {
     1 => (0)
     2 => (0 1)
     3 => (0 1 2)
@@ -335,7 +335,7 @@ array_impls! {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-macro_rules! tuple_impls {
+macro_rules! decode_tuple {
     ($($len:tt => ($($n:tt $name:ident)+))+) => {
         $(
             #[async_trait]
@@ -373,7 +373,7 @@ macro_rules! tuple_impls {
     }
 }
 
-tuple_impls! {
+decode_tuple! {
     1  => (0 T0)
     2  => (0 T0 1 T1)
     3  => (0 T0 1 T1 2 T2)
@@ -391,5 +391,68 @@ tuple_impls! {
     15 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14)
     16 => (0 T0 1 T1 2 T2 3 T3 4 T4 5 T5 6 T6 7 T7 8 T8 9 T9 10 T10 11 T11 12 T12 13 T13 14 T14 15 T15)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+macro_rules! decode_map {
+    (
+        $ty:ident < K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound1:ident $(+ $bound2:ident)*)* >,
+        $access:ident,
+        $with_capacity:expr
+    ) => {
+        #[async_trait]
+        impl<K, V $(, $typaram)*> FromStream for $ty<K, V $(, $typaram)*>
+        where
+            K: FromStream $(+ $kbound1 $(+ $kbound2)*)*,
+            V: FromStream,
+            $($typaram: $bound1 $(+ $bound2)*),*
+        {
+            async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+                struct MapVisitor<K, V $(, $typaram)*> {
+                    marker: PhantomData<$ty<K, V $(, $typaram)*>>,
+                }
+
+                #[async_trait]
+                impl<K, V $(, $typaram)*> Visitor for MapVisitor<K, V $(, $typaram)*>
+                where
+                    K: FromStream $(+ $kbound1 $(+ $kbound2)*)*,
+                    V: FromStream,
+                    $($typaram: $bound1 $(+ $bound2)*),*
+                {
+                    type Value = $ty<K, V $(, $typaram)*>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a map")
+                    }
+
+                    async fn visit_map<A: MapAccess>(self, mut $access: A) -> Result<Self::Value, A::Error> {
+                        let mut values = $with_capacity;
+
+                        while let Some((key, value)) = $access.next_entry().await? {
+                            values.insert(key, value);
+                        }
+
+                        Ok(values)
+                    }
+                }
+
+                let visitor = MapVisitor { marker: PhantomData };
+                decoder.decode_map(visitor).await
+            }
+        }
+    }
+}
+
+decode_map!(
+    BTreeMap<K: Ord, V>,
+    map,
+    BTreeMap::new()
+);
+
+decode_map!(
+    HashMap<K: Eq + Hash, V, S: BuildHasher + Default + Send>,
+    map,
+    HashMap::with_capacity_and_hasher(size_hint::cautious(map.size_hint()), S::default())
+);
 
 ////////////////////////////////////////////////////////////////////////////////
