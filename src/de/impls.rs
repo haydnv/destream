@@ -228,3 +228,109 @@ decode_seq!(
     Vec::reserve,
     Vec::push
 );
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct TupleVisitor<T> {
+    marker: PhantomData<T>,
+}
+
+impl<T> TupleVisitor<T> {
+    fn new() -> Self {
+        TupleVisitor {
+            marker: PhantomData,
+        }
+    }
+}
+
+#[async_trait]
+impl<T: FromStream> Visitor for TupleVisitor<[T; 0]> {
+    type Value = [T; 0];
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a zero-length tuple")
+    }
+
+    async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let next: Option<T> = seq.next_element().await?;
+        match next {
+            None => Ok([]),
+            Some(_) => Err(Error::invalid_length(0, &self)),
+        }
+    }
+}
+
+#[async_trait]
+impl<T: FromStream> FromStream for [T; 0] {
+    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, <D as Decoder>::Error> {
+        decoder.decode_tuple(0, TupleVisitor::<[T; 0]>::new()).await
+    }
+}
+
+macro_rules! array_impls {
+    ($($len:expr => ($($n:tt)+))+) => {
+        $(
+            #[async_trait]
+            impl<T: FromStream> Visitor for TupleVisitor<[T; $len]> {
+                type Value = [T; $len];
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str(concat!("an array of length ", $len))
+                }
+
+                async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                    Ok([$(
+                        match seq.next_element().await? {
+                            Some(val) => val,
+                            None => return Err(Error::invalid_length($n, &self)),
+                        }
+                    ),+])
+                }
+            }
+
+            #[async_trait]
+            impl<T: FromStream> FromStream for [T; $len] {
+                async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+                    decoder.decode_tuple($len, TupleVisitor::<[T; $len]>::new()).await
+                }
+            }
+        )+
+    }
+}
+
+array_impls! {
+    1 => (0)
+    2 => (0 1)
+    3 => (0 1 2)
+    4 => (0 1 2 3)
+    5 => (0 1 2 3 4)
+    6 => (0 1 2 3 4 5)
+    7 => (0 1 2 3 4 5 6)
+    8 => (0 1 2 3 4 5 6 7)
+    9 => (0 1 2 3 4 5 6 7 8)
+    10 => (0 1 2 3 4 5 6 7 8 9)
+    11 => (0 1 2 3 4 5 6 7 8 9 10)
+    12 => (0 1 2 3 4 5 6 7 8 9 10 11)
+    13 => (0 1 2 3 4 5 6 7 8 9 10 11 12)
+    14 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13)
+    15 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14)
+    16 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+    17 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)
+    18 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17)
+    19 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)
+    20 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)
+    21 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+    22 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21)
+    23 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22)
+    24 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23)
+    25 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24)
+    26 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25)
+    27 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26)
+    28 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27)
+    29 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28)
+    30 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29)
+    31 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)
+    32 => (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)
+}
+
+////////////////////////////////////////////////////////////////////////////////

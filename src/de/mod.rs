@@ -67,7 +67,7 @@ impl<'a> fmt::Display for dyn Expected + 'a {
 /// and inherit the default behavior for the other methods.
 ///
 /// Based on [`serde::de::Error`].
-pub trait Error: Sized + std::error::Error {
+pub trait Error: Send + Sized + std::error::Error {
     /// Raised when there is general error when deserializing a type.
     /// The message should not be capitalized and should not end with a period.
     fn custom<T: fmt::Display>(msg: T) -> Self;
@@ -85,7 +85,7 @@ pub trait Error: Sized + std::error::Error {
 
     /// Raised when decoding a sequence or map and the input data contains too many
     /// or too few elements.
-    fn invalid_length<E>(len: usize, exp: &dyn Expected) -> Self {
+    fn invalid_length(len: usize, exp: &dyn Expected) -> Self {
         Error::custom(format_args!("invalid length: {}, expected {}", len, exp))
     }
 
