@@ -2,6 +2,8 @@ use std::fmt;
 
 use async_trait::async_trait;
 
+mod impls;
+
 /// `Expected` represents an explanation of what data a `Visitor` was expecting to receive.
 ///
 /// This is used as an argument to the `invalid_type`, `invalid_value`, and
@@ -191,7 +193,8 @@ pub trait Decoder: Send {
     /// doesn't matter because it is ignored.
     ///
     /// Decoders for non-self-describing formats may not support this mode.
-    async fn decode_ignored_any<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    async fn decode_ignored_any<V: Visitor>(&mut self, visitor: V)
+        -> Result<V::Value, Self::Error>;
 }
 
 #[async_trait]
