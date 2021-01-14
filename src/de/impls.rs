@@ -119,7 +119,7 @@ impl<T: Send + ?Sized> FromStream for PhantomData<T> {
             marker: PhantomData,
         };
 
-        decoder.decode_unit_struct("PhantomData", visitor).await
+        decoder.decode_unit(visitor).await
     }
 }
 

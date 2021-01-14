@@ -184,9 +184,8 @@ pub trait Decoder: Send {
     async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a unit struct with a particular name.
-    async fn decode_unit_struct<V: Visitor>(
+    async fn decode_unit<V: Visitor>(
         &mut self,
-        name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>;
 
