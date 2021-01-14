@@ -1,6 +1,10 @@
 use std::fmt;
 
-pub trait Error {}
+mod impls;
+
+pub trait Error {
+    fn custom<I: fmt::Display>(info: I) -> Self;
+}
 
 /// Returned from `Encoder::encode_map`.
 pub trait EncodeMap {
@@ -113,25 +117,25 @@ pub trait Encoder: Sized {
     /// The type returned when an encoding error is encountered.
     type Error: Error;
 
-    /// Type returned from [`encode_seq`] for streaming the content of the sequence.
-    ///
-    /// [`encode_seq`]: #tymethod.encode_seq
-    type EncodeSeq: EncodeSeq<Ok = Self::Ok, Error = Self::Error>;
-
-    /// Type returned from [`encode_tuple`] for streaming the content of the tuple.
-    ///
-    /// [`encode_tuple`]: #tymethod.encode_tuple
-    type EncodeTuple: EncodeTuple<Ok = Self::Ok, Error = Self::Error>;
-
     /// Type returned from [`encode_map`] for streaming the content of the map.
     ///
     /// [`encode_map`]: #tymethod.encode_map
     type EncodeMap: EncodeMap<Ok = Self::Ok, Error = Self::Error>;
 
+    /// Type returned from [`encode_seq`] for streaming the content of the sequence.
+    ///
+    /// [`encode_seq`]: #tymethod.encode_seq
+    type EncodeSeq: EncodeSeq<Ok = Self::Ok, Error = Self::Error>;
+
     /// Type returned from [`encode_struct`] for streaming the content of a struct.
     ///
     /// [`encode_struct`]: #tymethod.encode_struct
     type EncodeStruct: EncodeStruct<Ok = Self::Ok, Error = Self::Error>;
+
+    /// Type returned from [`encode_tuple`] for streaming the content of the tuple.
+    ///
+    /// [`encode_tuple`]: #tymethod.encode_tuple
+    type EncodeTuple: EncodeTuple<Ok = Self::Ok, Error = Self::Error>;
 
     /// Encode a `bool`.
     fn encode_bool(self, v: bool) -> Result<Self::Ok, Self::Error>;
