@@ -1,3 +1,41 @@
+//! Generic data structure deserialization framework based on [`serde::de`].
+//!
+//! The two most important traits in this module are [`FromStream`] and [`Decoder`].
+//!
+//!  - **A type that implements `FromStream` is a data structure** that can be decoded from any
+//!  stream encoding supported by destream, and conversely
+//!  - **A type that implements `Decoder` is a data format** that can decode any supported stream.
+//!
+//! # The FromStream trait
+//!
+//! destream implements [`FromStream`] for many Rust primitive and standard library types.
+//! The complete list is below.
+//!
+//! # Implementations of FromStream provided by destream
+//!
+//!  - **Primitive types**:
+//!    - bool
+//!    - i8, i16, i32, i64
+//!    - u8, u16, u32, u64
+//!    - f32, f64
+//!  - **Compound types**:
+//!    - \[T; 0\] through \[T; 32\]
+//!    - tuples up to size 16
+//!  - **Common standard library types**:
+//!    - String
+//!    - Option\<T\>
+//!    - PhantomData\<T\>
+//!  - **Collection types**:
+//!    - BTreeMap\<K, V\>
+//!    - BTreeSet\<T\>
+//!    - BinaryHeap\<T\>
+//!    - HashMap\<K, V, H\>
+//!    - HashSet\<T, H\>
+//!    - LinkedList\<T\>
+//!    - VecDeque\<T\>
+//!    - Vec\<T\>
+
+
 use std::fmt;
 
 use async_trait::async_trait;
@@ -212,10 +250,10 @@ pub trait Decoder: Send {
         -> Result<V::Value, Self::Error>;
 }
 
-#[async_trait]
 /// This trait describes a value which can be decoded from a stream.
 ///
 /// Based on [`serde::de::Deserialize`].
+#[async_trait]
 pub trait FromStream: Send + Sized {
     /// Parse this value using the given `Decoder`.
     async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error>;
@@ -372,7 +410,6 @@ pub trait Visitor: Send + Sized {
     /// The input contains a `u64`.
     ///
     /// The default implementation fails with a type error.
-    #[inline]
     fn visit_u64<E: Error>(self, v: u64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, &self))
     }
