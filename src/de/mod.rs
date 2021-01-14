@@ -35,7 +35,6 @@
 //!    - VecDeque\<T\>
 //!    - Vec\<T\>
 
-
 use std::fmt;
 
 use async_trait::async_trait;
@@ -222,10 +221,7 @@ pub trait Decoder: Send {
     async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a unit struct with a particular name.
-    async fn decode_unit<V: Visitor>(
-        &mut self,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>;
+    async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a sequence of values and
     /// knows how many values there are without looking at the serialized data.
