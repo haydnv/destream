@@ -1,5 +1,7 @@
 use std::fmt;
 
+use futures::Stream;
+
 mod impls;
 
 pub trait Error {
@@ -7,19 +9,19 @@ pub trait Error {
 }
 
 /// Returned from `Encoder::encode_map`.
-pub trait EncodeMap {
+pub trait EncodeMap<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok;
+    type Ok: Stream + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error;
+    type Error: Error + 'en;
 
     /// Encode a map key.
     ///
     /// If possible, `ToStream` implementations are encouraged to use `encode_entry` instead as it
     /// may be implemented more efficiently in some formats compared to a pair of calls to
     /// `encode_key` and `encode_value`.
-    fn encode_key<T: ToStream + ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>;
+    fn encode_key<T: ToStream<'en> + 'en>(&mut self, key: &'en T) -> Result<(), Self::Error>;
 
     /// Encode a map value.
     ///
@@ -27,7 +29,7 @@ pub trait EncodeMap {
     ///
     /// Calling `encode_value` before `encode_key` is incorrect and is allowed to panic or produce
     /// bogus results.
-    fn encode_value<T: ToStream + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>;
+    fn encode_value<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
 
     /// Encode a map entry consisting of a key and a value.
     ///
@@ -38,10 +40,10 @@ pub trait EncodeMap {
     /// [`ToStream`]: ../trait.ToStream.html
     /// [`encode_key`]: #tymethod.encode_key
     /// [`encode_value`]: #tymethod.encode_value
-    fn encode_entry<K: ToStream + ?Sized, V: ToStream + ?Sized>(
+    fn encode_entry<K: ToStream<'en> + 'en, V: ToStream<'en> + 'en>(
         &mut self,
-        key: &K,
-        value: &V,
+        key: &'en K,
+        value: &'en V,
     ) -> Result<(), Self::Error> {
         self.encode_key(key)?;
         self.encode_value(value)
@@ -52,33 +54,33 @@ pub trait EncodeMap {
 }
 
 /// Returned from `Encoder::encode_seq`.
-pub trait EncodeSeq {
+pub trait EncodeSeq<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok;
+    type Ok: Stream + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error;
+    type Error: Error + 'en;
 
     /// Encode the next element in the sequence.
-    fn encode_element<T: ToStream + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>;
+    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
 
     /// Finish encoding the sequence.
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
 /// Returned from `Encoder::encode_struct`.
-pub trait EncodeStruct {
+pub trait EncodeStruct<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok;
+    type Ok: Stream + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error;
+    type Error: Error + 'en;
 
     /// Encode a field in the struct.
-    fn encode_field<T: ToStream + ?Sized>(
+    fn encode_field<T: ToStream<'en> + 'en>(
         &mut self,
         key: &'static str,
-        value: &T,
+        value: &'en T,
     ) -> Result<(), Self::Error>;
 
     /// Indicate that a field has been skipped.
@@ -93,15 +95,15 @@ pub trait EncodeStruct {
 }
 
 /// Returned from `Encoder::encode_tuple`.
-pub trait EncodeTuple {
+pub trait EncodeTuple<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok;
+    type Ok: Stream + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error;
+    type Error: Error + 'en;
 
     /// Encode the next element in the tuple.
-    fn encode_element<T: ToStream + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>;
+    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
 
     /// Finish encoding the tuple.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -110,32 +112,32 @@ pub trait EncodeTuple {
 /// A **data format** that can encode and stream any data structure supported by destream.
 ///
 /// Based on [`serde::ser::Serializer`].
-pub trait Encoder: Sized {
+pub trait Encoder<'en>: Sized {
     /// The output type produced by this `Encoder`.
-    type Ok;
+    type Ok: Stream + 'en;
 
     /// The type returned when an encoding error is encountered.
-    type Error: Error;
+    type Error: Error + 'en;
 
     /// Type returned from [`encode_map`] for streaming the content of the map.
     ///
     /// [`encode_map`]: #tymethod.encode_map
-    type EncodeMap: EncodeMap<Ok = Self::Ok, Error = Self::Error>;
+    type EncodeMap: EncodeMap<'en, Ok = Self::Ok, Error = Self::Error>;
 
     /// Type returned from [`encode_seq`] for streaming the content of the sequence.
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
-    type EncodeSeq: EncodeSeq<Ok = Self::Ok, Error = Self::Error>;
+    type EncodeSeq: EncodeSeq<'en, Ok = Self::Ok, Error = Self::Error>;
 
     /// Type returned from [`encode_struct`] for streaming the content of a struct.
     ///
     /// [`encode_struct`]: #tymethod.encode_struct
-    type EncodeStruct: EncodeStruct<Ok = Self::Ok, Error = Self::Error>;
+    type EncodeStruct: EncodeStruct<'en, Ok = Self::Ok, Error = Self::Error>;
 
     /// Type returned from [`encode_tuple`] for streaming the content of the tuple.
     ///
     /// [`encode_tuple`]: #tymethod.encode_tuple
-    type EncodeTuple: EncodeTuple<Ok = Self::Ok, Error = Self::Error>;
+    type EncodeTuple: EncodeTuple<'en, Ok = Self::Ok, Error = Self::Error>;
 
     /// Encode a `bool`.
     fn encode_bool(self, v: bool) -> Result<Self::Ok, Self::Error>;
@@ -181,7 +183,7 @@ pub trait Encoder: Sized {
     /// Encode a [`Some(T)`] value.
     ///
     /// [`Some(T)`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
-    fn encode_some<T: ToStream + ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>;
+    fn encode_some<T: ToStream<'en> + 'en>(self, value: &'en T) -> Result<Self::Ok, Self::Error>;
 
     /// Encode a `()` value.
     fn encode_unit(self) -> Result<Self::Ok, Self::Error>;
@@ -222,15 +224,14 @@ pub trait Encoder: Sized {
     /// Implementors should not need to override this method.
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
-    fn collect_seq<I>(self, iter: I) -> Result<Self::Ok, Self::Error>
-    where
-        I: IntoIterator,
-        <I as IntoIterator>::Item: ToStream,
-    {
+    fn collect_seq<T: ToStream<'en> + 'en, I: IntoIterator<Item = &'en T>>(
+        self,
+        iter: I,
+    ) -> Result<Self::Ok, Self::Error> {
         let iter = iter.into_iter();
         let mut encoder = self.encode_seq(iterator_len_hint(&iter))?;
         for item in iter {
-            encoder.encode_element(&item)?;
+            encoder.encode_element(item)?;
         }
 
         encoder.end()
@@ -244,14 +245,14 @@ pub trait Encoder: Sized {
     /// [`encode_map`]: #tymethod.encode_map
     fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
     where
-        K: ToStream,
-        V: ToStream,
-        I: IntoIterator<Item = (K, V)>,
+        K: ToStream<'en> + 'en,
+        V: ToStream<'en> + 'en,
+        I: IntoIterator<Item = (&'en K, &'en V)>,
     {
         let iter = iter.into_iter();
         let mut encoder = self.encode_map(iterator_len_hint(&iter))?;
         for (key, value) in iter {
-            encoder.encode_entry(&key, &value)?;
+            encoder.encode_entry(key, value)?;
         }
 
         encoder.end()
@@ -264,9 +265,9 @@ pub trait Encoder: Sized {
 }
 
 /// A data structure that can be serialized into any stream encoding supported by destream.
-pub trait ToStream {
+pub trait ToStream<'en> {
     /// Serialize this value into the given Serde encoder.
-    fn to_stream<E: Encoder>(&self, encoder: E) -> Result<E::Ok, E::Error>;
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error>;
 }
 
 fn iterator_len_hint<I>(iter: &I) -> Option<usize>
