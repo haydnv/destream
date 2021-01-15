@@ -21,7 +21,7 @@ pub trait EncodeMap<'en> {
     /// If possible, `ToStream` implementations are encouraged to use `encode_entry` instead as it
     /// may be implemented more efficiently in some formats compared to a pair of calls to
     /// `encode_key` and `encode_value`.
-    fn encode_key<T: ToStream<'en> + 'en>(&mut self, key: &'en T) -> Result<(), Self::Error>;
+    fn encode_key<T: ToStream<'en> + 'en>(&mut self, key: T) -> Result<(), Self::Error>;
 
     /// Encode a map value.
     ///
@@ -29,7 +29,7 @@ pub trait EncodeMap<'en> {
     ///
     /// Calling `encode_value` before `encode_key` is incorrect and is allowed to panic or produce
     /// bogus results.
-    fn encode_value<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
+    fn encode_value<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Encode a map entry consisting of a key and a value.
     ///
@@ -42,8 +42,8 @@ pub trait EncodeMap<'en> {
     /// [`encode_value`]: #tymethod.encode_value
     fn encode_entry<K: ToStream<'en> + 'en, V: ToStream<'en> + 'en>(
         &mut self,
-        key: &'en K,
-        value: &'en V,
+        key: K,
+        value: V,
     ) -> Result<(), Self::Error> {
         self.encode_key(key)?;
         self.encode_value(value)
@@ -62,7 +62,7 @@ pub trait EncodeSeq<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the sequence.
-    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
+    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Finish encoding the sequence.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -80,7 +80,7 @@ pub trait EncodeStruct<'en> {
     fn encode_field<T: ToStream<'en> + 'en>(
         &mut self,
         key: &'static str,
-        value: &'en T,
+        value: T,
     ) -> Result<(), Self::Error>;
 
     /// Indicate that a field has been skipped.
@@ -103,7 +103,7 @@ pub trait EncodeTuple<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the tuple.
-    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: &'en T) -> Result<(), Self::Error>;
+    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Finish encoding the tuple.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -183,7 +183,7 @@ pub trait Encoder<'en>: Sized {
     /// Encode a [`Some(T)`] value.
     ///
     /// [`Some(T)`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
-    fn encode_some<T: ToStream<'en> + 'en>(self, value: &'en T) -> Result<Self::Ok, Self::Error>;
+    fn encode_some<T: ToStream<'en> + 'en>(self, value: T) -> Result<Self::Ok, Self::Error>;
 
     /// Encode a `()` value.
     fn encode_unit(self) -> Result<Self::Ok, Self::Error>;
@@ -224,7 +224,7 @@ pub trait Encoder<'en>: Sized {
     /// Implementors should not need to override this method.
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
-    fn collect_seq<T: ToStream<'en> + 'en, I: IntoIterator<Item = &'en T>>(
+    fn collect_seq<T: ToStream<'en> + 'en, I: IntoIterator<Item = T>>(
         self,
         iter: I,
     ) -> Result<Self::Ok, Self::Error> {
@@ -247,7 +247,7 @@ pub trait Encoder<'en>: Sized {
     where
         K: ToStream<'en> + 'en,
         V: ToStream<'en> + 'en,
-        I: IntoIterator<Item = (&'en K, &'en V)>,
+        I: IntoIterator<Item = (K, V)>,
     {
         let iter = iter.into_iter();
         let mut encoder = self.encode_map(iterator_len_hint(&iter))?;
@@ -266,7 +266,10 @@ pub trait Encoder<'en>: Sized {
 
 /// A data structure that can be serialized into any stream encoding supported by destream.
 pub trait ToStream<'en> {
-    /// Serialize this value into the given Serde encoder.
+    /// Take ownership of this value and serialize it into the given encoder.
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error>;
+
+    /// Serialize this value into the given encoder.
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error>;
 }
 
