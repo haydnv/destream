@@ -1,6 +1,7 @@
+use std::convert::Infallible;
 use std::fmt;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 
 mod impls;
 
@@ -194,6 +195,24 @@ pub trait Encoder<'en>: Sized {
     /// The argument is the number of elements in the sequence, which may or may not be computable
     /// before iterating over the sequence.
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
+
+    /// Given a stream which borrows a sequence of encodable values, return an encoded stream.
+    fn encode_seq_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
+        self,
+        seq: S,
+    ) -> Result<Self::Ok, Self::Error> {
+        self.encode_seq_try_stream(seq.map(Result::<T, Infallible>::Ok))
+    }
+
+    /// Given a stream which borrows a sequence of encodable values, return an encoded stream.
+    fn encode_seq_try_stream<
+        E: fmt::Display + 'en,
+        T: ToStream<'en> + 'en,
+        S: Stream<Item = Result<T, E>> + 'en,
+    >(
+        self,
+        seq: S,
+    ) -> Result<Self::Ok, Self::Error>;
 
     /// Begin encoding a statically sized sequence whose length will be known at decoding time
     /// without looking at the encoded data.
