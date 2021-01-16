@@ -189,6 +189,32 @@ pub trait Encoder<'en>: Sized {
     /// Encode a `()` value.
     fn encode_unit(self) -> Result<Self::Ok, Self::Error>;
 
+    /// Begin encoding a map.
+    /// This call must be followed by zero or more calls to `encode_key` and `encode_value`,
+    /// then `end`.
+    ///
+    /// The argument is the number of elements in the map, which may or may not be computable before
+    /// iterating over the map.
+    fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
+
+    /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
+    fn encode_map_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
+        self,
+        map: S,
+    ) -> Result<Self::Ok, Self::Error> {
+        self.encode_seq_try_stream(map.map(Result::<T, Infallible>::Ok))
+    }
+
+    /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
+    fn encode_map_try_stream<
+        E: fmt::Display + 'en,
+        T: ToStream<'en> + 'en,
+        S: Stream<Item = Result<T, E>> + 'en,
+    >(
+        self,
+        map: S,
+    ) -> Result<Self::Ok, Self::Error>;
+
     /// Begin encoding a variably sized sequence.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
     ///
@@ -196,7 +222,7 @@ pub trait Encoder<'en>: Sized {
     /// before iterating over the sequence.
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
-    /// Given a stream which borrows a sequence of encodable values, return an encoded stream.
+    /// Given a stream of encodable values, return a stream encoded as a sequence.
     fn encode_seq_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
         self,
         seq: S,
@@ -204,7 +230,7 @@ pub trait Encoder<'en>: Sized {
         self.encode_seq_try_stream(seq.map(Result::<T, Infallible>::Ok))
     }
 
-    /// Given a stream which borrows a sequence of encodable values, return an encoded stream.
+    /// Given a stream of encodable values, return a stream encoded as a sequence.
     fn encode_seq_try_stream<
         E: fmt::Display + 'en,
         T: ToStream<'en> + 'en,
@@ -213,19 +239,6 @@ pub trait Encoder<'en>: Sized {
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error>;
-
-    /// Begin encoding a statically sized sequence whose length will be known at decoding time
-    /// without looking at the encoded data.
-    /// This call must be followed by zero or more calls to `encode_element`, then `end`.
-    fn encode_tuple(self, len: usize) -> Result<Self::EncodeTuple, Self::Error>;
-
-    /// Begin encoding a map.
-    /// This call must be followed by zero or more calls to `encode_key` and `encode_value`,
-    /// then `end`.
-    ///
-    /// The argument is the number of elements in the map, which may or may not be computable before
-    /// iterating over the map.
-    fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
 
     /// Begin encoding a struct.
     /// This call must be followed by zero or more calls to `encode_field`, then `end`.
@@ -236,6 +249,11 @@ pub trait Encoder<'en>: Sized {
         name: &'static str,
         len: usize,
     ) -> Result<Self::EncodeStruct, Self::Error>;
+
+    /// Begin encoding a statically sized sequence whose length will be known at decoding time
+    /// without looking at the encoded data.
+    /// This call must be followed by zero or more calls to `encode_element`, then `end`.
+    fn encode_tuple(self, len: usize) -> Result<Self::EncodeTuple, Self::Error>;
 
     /// Collect an iterator as a sequence.
     ///
