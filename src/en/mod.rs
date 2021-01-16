@@ -13,6 +13,15 @@
 //! standard library types. The complete list is below. All of these can be
 //! encoded automatically using `destream`.
 //!
+//! # The IntoStream trait
+//!
+//! Often when encoding a stream, a value needs to be encoded which may outlive the calling function
+//! context. For this reason, the `encode_map`, `encode_seq`, and `encode_stream` methods accept
+//! a value which implements `IntoStream`. A borrow of a `ToStream` value automatically implements
+//! `IntoStream`, so you can still call `encode_*` on a borrowed value, but with the advantage
+//! that you can also encode an owned value into a stream of any lifetime by implementing
+//! `IntoStream`.
+//!
 //! # Implementations of `ToStream` provided by `destream`
 //!
 //!  - **Primitive types**:
@@ -42,6 +51,11 @@
 //!    - LinkedList\<T\>
 //!    - VecDeque\<T\>
 //!    - Vec\<T\>
+//!
+//! # Implementations of `IntoStream` provided by `destream`
+//!
+//!  - All `ToStream` types above, except \[T; 0\] through \[T; 32\]
+//!  - &T and &mut T where T: ToStream
 
 use std::convert::Infallible;
 use std::fmt;
@@ -67,7 +81,7 @@ pub trait EncodeMap<'en> {
     /// If possible, `ToStream` implementations are encouraged to use `encode_entry` instead as it
     /// may be implemented more efficiently in some formats compared to a pair of calls to
     /// `encode_key` and `encode_value`.
-    fn encode_key<T: ToStream<'en> + 'en>(&mut self, key: T) -> Result<(), Self::Error>;
+    fn encode_key<T: IntoStream<'en> + 'en>(&mut self, key: T) -> Result<(), Self::Error>;
 
     /// Encode a map value.
     ///
@@ -75,7 +89,7 @@ pub trait EncodeMap<'en> {
     ///
     /// Calling `encode_value` before `encode_key` is incorrect and is allowed to panic or produce
     /// bogus results.
-    fn encode_value<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
+    fn encode_value<T: IntoStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Encode a map entry consisting of a key and a value.
     ///
@@ -86,7 +100,7 @@ pub trait EncodeMap<'en> {
     /// [`ToStream`]: ../trait.ToStream.html
     /// [`encode_key`]: #tymethod.encode_key
     /// [`encode_value`]: #tymethod.encode_value
-    fn encode_entry<K: ToStream<'en> + 'en, V: ToStream<'en> + 'en>(
+    fn encode_entry<K: IntoStream<'en> + 'en, V: IntoStream<'en> + 'en>(
         &mut self,
         key: K,
         value: V,
@@ -108,7 +122,7 @@ pub trait EncodeSeq<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the sequence.
-    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
+    fn encode_element<T: IntoStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Finish encoding the sequence.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -123,7 +137,7 @@ pub trait EncodeTuple<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the tuple.
-    fn encode_element<T: ToStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
+    fn encode_element<T: IntoStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
 
     /// Finish encoding the tuple.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -198,7 +212,7 @@ pub trait Encoder<'en>: Sized {
     /// Encode a [`Some(T)`] value.
     ///
     /// [`Some(T)`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
-    fn encode_some<T: ToStream<'en> + 'en>(self, value: T) -> Result<Self::Ok, Self::Error>;
+    fn encode_some<T: IntoStream<'en> + 'en>(self, value: T) -> Result<Self::Ok, Self::Error>;
 
     /// Encode a `()` value.
     fn encode_unit(self) -> Result<Self::Ok, Self::Error>;
@@ -211,24 +225,6 @@ pub trait Encoder<'en>: Sized {
     /// iterating over the map.
     fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
 
-    /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
-    // fn encode_map_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
-    //     self,
-    //     map: S,
-    // ) -> Result<Self::Ok, Self::Error> {
-    //     self.encode_seq_try_stream(map.map(Result::<T, Infallible>::Ok))
-    // }
-
-    /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
-    // fn encode_map_try_stream<
-    //     E: fmt::Display + 'en,
-    //     T: ToStream<'en> + 'en,
-    //     S: Stream<Item = Result<T, E>> + 'en,
-    // >(
-    //     self,
-    //     map: S,
-    // ) -> Result<Self::Ok, Self::Error>;
-
     /// Begin encoding a variably sized sequence.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
     ///
@@ -237,7 +233,7 @@ pub trait Encoder<'en>: Sized {
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
     /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
+    fn encode_seq_stream<T: IntoStream<'en> + 'en, S: Stream<Item = T> + 'en>(
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error> {
@@ -247,7 +243,7 @@ pub trait Encoder<'en>: Sized {
     /// Given a stream of encodable values, return a stream encoded as a sequence.
     fn encode_seq_try_stream<
         E: fmt::Display + 'en,
-        T: ToStream<'en> + 'en,
+        T: IntoStream<'en> + 'en,
         S: Stream<Item = Result<T, E>> + 'en,
     >(
         self,
@@ -265,7 +261,7 @@ pub trait Encoder<'en>: Sized {
     /// Implementors should not need to override this method.
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
-    fn collect_seq<T: ToStream<'en> + 'en, I: IntoIterator<Item = T>>(
+    fn collect_seq<T: IntoStream<'en> + 'en, I: IntoIterator<Item = T>>(
         self,
         iter: I,
     ) -> Result<Self::Ok, Self::Error> {
@@ -286,8 +282,8 @@ pub trait Encoder<'en>: Sized {
     /// [`encode_map`]: #tymethod.encode_map
     fn collect_map<K, V, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
     where
-        K: ToStream<'en> + 'en,
-        V: ToStream<'en> + 'en,
+        K: IntoStream<'en> + 'en,
+        V: IntoStream<'en> + 'en,
         I: IntoIterator<Item = (K, V)>,
     {
         let iter = iter.into_iter();
@@ -305,13 +301,19 @@ pub trait Encoder<'en>: Sized {
     }
 }
 
-/// A data structure that can be serialized into any stream encoding supported by destream.
+/// A data structure which can be borrowed to serialize into any supported stream encoding.
 pub trait ToStream<'en> {
-    /// Take ownership of this value and serialize it into the given encoder.
-    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error>;
-
     /// Serialize this value into the given encoder.
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error>;
+}
+
+/// A data structure that can be serialized into any supported stream encoding.
+///
+/// This trait is automatically implemented for a borrow of `ToStream`, so prefer implementing
+/// `ToStream` itself.
+pub trait IntoStream<'en> {
+    /// Take ownership of this value and serialize it into the given encoder.
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error>;
 }
 
 fn iterator_len_hint<I>(iter: &I) -> Option<usize>

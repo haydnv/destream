@@ -3,17 +3,19 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
-use super::{EncodeTuple, Encoder, ToStream};
+use super::{EncodeTuple, Encoder, IntoStream, ToStream};
 
 macro_rules! autoencode {
     ($ty:ident, $method:ident $($cast:tt)*) => {
         impl<'en> ToStream<'en> for $ty {
-            fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
-                encoder.$method(self $($cast)*)
-            }
-
             fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
                 encoder.$method(*self $($cast)*)
+            }
+        }
+
+        impl<'en> IntoStream<'en> for $ty {
+            fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+                encoder.$method(self $($cast)*)
             }
         }
     }
@@ -35,7 +37,7 @@ autoencode!(f64, encode_f64);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, 'en> ToStream<'en> for &'a str
+impl<'a, 'en> IntoStream<'en> for &'a str
 where
     'a: 'en,
 {
@@ -45,22 +47,38 @@ where
     ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
         encoder.encode_str(self)
     }
+}
 
+impl<'a, 'en> ToStream<'en> for &'a str
+where
+    'a: 'en,
+{
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_str(self)
     }
 }
 
-impl<'en> ToStream<'en> for String {
+impl<'en> IntoStream<'en> for String {
     fn into_stream<E: Encoder<'en>>(
         self,
         encoder: E,
     ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
         encoder.encode_str(&self)
     }
+}
 
+impl<'en> ToStream<'en> for String {
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_str(self)
+    }
+}
+
+impl<'a, 'en> IntoStream<'en> for fmt::Arguments<'a>
+where
+    'a: 'en,
+{
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.collect_str(&self)
     }
 }
 
@@ -68,10 +86,6 @@ impl<'a, 'en> ToStream<'en> for fmt::Arguments<'a>
 where
     'a: 'en,
 {
-    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
-        encoder.collect_str(&self)
-    }
-
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.collect_str(self)
     }
@@ -79,14 +93,16 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Option<T> {
+impl<'en, T: IntoStream<'en> + 'en> IntoStream<'en> for Option<T> {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         match self {
             Some(value) => encoder.encode_some(value),
             None => encoder.encode_none(),
         }
     }
+}
 
+impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Option<T> {
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         match *self {
             Some(ref value) => encoder.encode_some(value),
@@ -97,11 +113,13 @@ impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Option<T> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'en, T: ?Sized> ToStream<'en> for PhantomData<T> {
+impl<'en, T: ?Sized> IntoStream<'en> for PhantomData<T> {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_unit()
     }
+}
 
+impl<'en, T: ?Sized> ToStream<'en> for PhantomData<T> {
     fn to_stream<E: Encoder<'en>>(&self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_unit()
     }
@@ -109,8 +127,8 @@ impl<'en, T: ?Sized> ToStream<'en> for PhantomData<T> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Does not require T: ToStream.
-impl<'en, T> ToStream<'en> for [T; 0] {
+// Does not require T: IntoStream.
+impl<'en, T> IntoStream<'en> for [T; 0] {
     fn into_stream<E: Encoder<'en>>(
         self,
         encoder: E,
@@ -118,7 +136,10 @@ impl<'en, T> ToStream<'en> for [T; 0] {
         let seq = encoder.encode_tuple(0)?;
         seq.end()
     }
+}
 
+// Does not require T: ToStream.
+impl<'en, T> ToStream<'en> for [T; 0] {
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         let seq = encoder.encode_tuple(0)?;
         seq.end()
@@ -128,7 +149,7 @@ impl<'en, T> ToStream<'en> for [T; 0] {
 macro_rules! encode_array {
     ($($len:tt)+) => {
         $(
-            impl<'a, 'en, T: ToStream<'en> + 'en> ToStream<'en> for &'a [T; $len] where 'a: 'en {
+            impl<'a, 'en, T: ToStream<'en> + 'en> IntoStream<'en> for &'a [T; $len] where 'a: 'en {
                 fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
                     let mut seq = encoder.encode_tuple($len)?;
                     for e in self {
@@ -136,7 +157,9 @@ macro_rules! encode_array {
                     }
                     seq.end()
                 }
+            }
 
+            impl<'a, 'en, T: ToStream<'en> + 'en> ToStream<'en> for &'a [T; $len] where 'a: 'en {
                 fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
                     let mut seq = encoder.encode_tuple($len)?;
                     for e in *self {
@@ -158,14 +181,19 @@ encode_array! {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, 'en, T: ToStream<'en>> ToStream<'en> for &'a [T]
+impl<'a, 'en, T: ToStream<'en> + 'en> IntoStream<'en> for &'a [T]
 where
     'a: 'en,
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.collect_seq(self)
     }
+}
 
+impl<'a, 'en, T: ToStream<'en>> ToStream<'en> for &'a [T]
+where
+    'a: 'en,
+{
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.collect_seq(*self)
     }
@@ -173,15 +201,21 @@ where
 
 macro_rules! encode_seq {
     ($ty:ident < T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound:ident)* >) => {
-        impl<'en, T $(, $typaram)*> ToStream<'en> for $ty<T $(, $typaram)*>
+        impl<'en, T $(, $typaram)*> IntoStream<'en> for $ty<T $(, $typaram)*>
         where
-            T: ToStream<'en> + 'en $(+ $tbound1 $(+ $tbound2)*)*,
+            T: IntoStream<'en> + 'en $(+ $tbound1 $(+ $tbound2)*)*,
             $($typaram: $bound,)*
         {
             fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
                 encoder.collect_seq(self)
             }
+        }
 
+        impl<'en, T $(, $typaram)*> ToStream<'en> for $ty<T $(, $typaram)*>
+        where
+            T: ToStream<'en> + 'en $(+ $tbound1 $(+ $tbound2)*)*,
+            $($typaram: $bound,)*
+        {
             fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
                 encoder.collect_seq(self)
             }
@@ -201,9 +235,9 @@ encode_seq!(VecDeque<T>);
 macro_rules! encode_tuple {
     ($($len:expr => ($($n:tt $name:ident)+))+) => {
         $(
-            impl<'en, $($name),+> ToStream<'en> for ($($name,)+)
+            impl<'en, $($name),+> IntoStream<'en> for ($($name,)+)
             where
-                $($name: ToStream<'en> + 'en,)+
+                $($name: IntoStream<'en> + 'en,)+
             {
                 fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
                     let mut tuple = encoder.encode_tuple($len)?;
@@ -212,7 +246,12 @@ macro_rules! encode_tuple {
                     )+
                     tuple.end()
                 }
+            }
 
+            impl<'en, $($name),+> ToStream<'en> for ($($name,)+)
+            where
+                $($name: ToStream<'en> + 'en,)+
+            {
                 fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
                     let mut tuple = encoder.encode_tuple($len)?;
                     $(
@@ -248,16 +287,23 @@ encode_tuple! {
 
 macro_rules! encode_map {
     ($ty:ident < K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound:ident)* >) => {
+        impl<'en, K, V $(, $typaram)*> IntoStream<'en> for $ty<K, V $(, $typaram)*>
+        where
+            K: IntoStream<'en> + 'en $(+ $kbound1 $(+ $kbound2)*)*,
+            V: IntoStream<'en> + 'en,
+            $($typaram: $bound,)*
+        {
+            fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+                encoder.collect_map(self)
+            }
+        }
+
         impl<'en, K, V $(, $typaram)*> ToStream<'en> for $ty<K, V $(, $typaram)*>
         where
             K: ToStream<'en> + 'en $(+ $kbound1 $(+ $kbound2)*)*,
             V: ToStream<'en> + 'en,
             $($typaram: $bound,)*
         {
-            fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
-                encoder.collect_map(self)
-            }
-
             fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
                 encoder.collect_map(self)
             }
@@ -270,11 +316,13 @@ encode_map!(HashMap<K: Eq + Hash, V, H: BuildHasher>);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Box<T> {
+impl<'en, T: IntoStream<'en> + 'en> IntoStream<'en> for Box<T> {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         (*self).into_stream(encoder)
     }
+}
 
+impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Box<T> {
     fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
         (&**self).to_stream(encoder)
     }
@@ -290,13 +338,9 @@ macro_rules! encode_ref {
             fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
                 (*self).to_stream(encoder)
             }
-
-            fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
-                (**self).to_stream(encoder)
-            }
         }
     };
 }
 
-encode_ref!(<'a, 'en, T: ?Sized> ToStream<'en> for &'a T where T: ToStream<'en> + 'en, 'a: 'en);
-encode_ref!(<'a, 'en, T: ?Sized> ToStream<'en> for &'a mut T where T: ToStream<'en> + 'en, 'a: 'en);
+encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a T where T: ToStream<'en> + 'en, 'a: 'en);
+encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a mut T where T: ToStream<'en> + 'en, 'a: 'en);
