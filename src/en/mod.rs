@@ -1,3 +1,48 @@
+//! Generic data structure serialization framework based on [`serde::ser`].
+//!
+//! The two most important traits in this module are [`ToStream`] and [`Encoder`].
+//!
+//!  - **A type that implements `ToStream` is a data structure** that can be
+//!    encoded to any stream format supported by `destream`, and conversely
+//!  - **A type that implements `Encoder` is a data format** that can
+//!    encode any supported data structure into a stream.
+//!
+//! # The ToStream trait
+//!
+//! `destream` provides [`ToStream`] implementations for many Rust primitive and
+//! standard library types. The complete list is below. All of these can be
+//! encoded automatically using `destream`.
+//!
+//! # Implementations of `ToStream` provided by `destream`
+//!
+//!  - **Primitive types**:
+//!    - bool
+//!    - i8, i16, i32, i64, i128, isize
+//!    - u8, u16, u32, u64, u128, usize
+//!    - f32, f64
+//!    - str
+//!    - &T and &mut T
+//!  - **Compound types**:
+//!    - \[T\]
+//!    - \[T; 0\] through \[T; 32\]
+//!    - tuples up to size 16
+//!  - **Common standard library types**:
+//!    - String
+//!    - Option\<T\>
+//!    - Result\<T, E\>
+//!    - PhantomData\<T\>
+//!  - **Wrapper types**:
+//!    - Box\<T\>
+//!  - **Collection types**:
+//!    - BTreeMap\<K, V\>
+//!    - BTreeSet\<T\>
+//!    - BinaryHeap\<T\>
+//!    - HashMap\<K, V, H\>
+//!    - HashSet\<T, H\>
+//!    - LinkedList\<T\>
+//!    - VecDeque\<T\>
+//!    - Vec\<T\>
+
 use std::convert::Infallible;
 use std::fmt;
 
@@ -84,7 +129,7 @@ pub trait EncodeTuple<'en> {
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
-/// A **data format** that can encode and stream any data structure supported by destream.
+/// A data format that can encode and stream any data structure supported by destream.
 ///
 /// Based on [`serde::ser::Serializer`].
 pub trait Encoder<'en>: Sized {

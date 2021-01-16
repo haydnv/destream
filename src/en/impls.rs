@@ -1,9 +1,9 @@
 use std::collections::*;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
+use std::marker::PhantomData;
 
-use super::{Encoder, ToStream};
-use crate::EncodeTuple;
+use super::{EncodeTuple, Encoder, ToStream};
 
 macro_rules! autoencode {
     ($ty:ident, $method:ident $($cast:tt)*) => {
@@ -92,6 +92,18 @@ impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Option<T> {
             Some(ref value) => encoder.encode_some(value),
             None => encoder.encode_none(),
         }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl<'en, T: ?Sized> ToStream<'en> for PhantomData<T> {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_unit()
+    }
+
+    fn to_stream<E: Encoder<'en>>(&self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_unit()
     }
 }
 

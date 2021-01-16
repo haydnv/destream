@@ -3,12 +3,12 @@
 //! The two most important traits in this module are [`FromStream`] and [`Decoder`].
 //!
 //!  - **A type that implements `FromStream` is a data structure** that can be decoded from any
-//!  stream encoding supported by destream, and conversely
+//!  stream encoding supported by `destream`, and conversely
 //!  - **A type that implements `Decoder` is a data format** that can decode any supported stream.
 //!
 //! # The FromStream trait
 //!
-//! destream implements [`FromStream`] for many Rust primitive and standard library types.
+//! `destream` implements [`FromStream`] for many Rust primitive and standard library types.
 //! The complete list is below.
 //!
 //! # Implementations of FromStream provided by destream
