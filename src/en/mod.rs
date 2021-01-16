@@ -69,32 +69,6 @@ pub trait EncodeSeq<'en> {
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
-/// Returned from `Encoder::encode_struct`.
-pub trait EncodeStruct<'en> {
-    /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok: Stream + 'en;
-
-    /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error + 'en;
-
-    /// Encode a field in the struct.
-    fn encode_field<T: ToStream<'en> + 'en>(
-        &mut self,
-        key: &'static str,
-        value: T,
-    ) -> Result<(), Self::Error>;
-
-    /// Indicate that a field has been skipped.
-    #[inline]
-    fn skip_field(&mut self, key: &'static str) -> Result<(), Self::Error> {
-        let _ = key;
-        Ok(())
-    }
-
-    /// Finish encoding the struct.
-    fn end(self) -> Result<Self::Ok, Self::Error>;
-}
-
 /// Returned from `Encoder::encode_tuple`.
 pub trait EncodeTuple<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
@@ -129,11 +103,6 @@ pub trait Encoder<'en>: Sized {
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
     type EncodeSeq: EncodeSeq<'en, Ok = Self::Ok, Error = Self::Error>;
-
-    /// Type returned from [`encode_struct`] for streaming the content of a struct.
-    ///
-    /// [`encode_struct`]: #tymethod.encode_struct
-    type EncodeStruct: EncodeStruct<'en, Ok = Self::Ok, Error = Self::Error>;
 
     /// Type returned from [`encode_tuple`] for streaming the content of the tuple.
     ///
@@ -198,22 +167,22 @@ pub trait Encoder<'en>: Sized {
     fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
 
     /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
-    fn encode_map_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
-        self,
-        map: S,
-    ) -> Result<Self::Ok, Self::Error> {
-        self.encode_seq_try_stream(map.map(Result::<T, Infallible>::Ok))
-    }
+    // fn encode_map_stream<T: ToStream<'en> + 'en, S: Stream<Item = T> + 'en>(
+    //     self,
+    //     map: S,
+    // ) -> Result<Self::Ok, Self::Error> {
+    //     self.encode_seq_try_stream(map.map(Result::<T, Infallible>::Ok))
+    // }
 
     /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
-    fn encode_map_try_stream<
-        E: fmt::Display + 'en,
-        T: ToStream<'en> + 'en,
-        S: Stream<Item = Result<T, E>> + 'en,
-    >(
-        self,
-        map: S,
-    ) -> Result<Self::Ok, Self::Error>;
+    // fn encode_map_try_stream<
+    //     E: fmt::Display + 'en,
+    //     T: ToStream<'en> + 'en,
+    //     S: Stream<Item = Result<T, E>> + 'en,
+    // >(
+    //     self,
+    //     map: S,
+    // ) -> Result<Self::Ok, Self::Error>;
 
     /// Begin encoding a variably sized sequence.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
@@ -239,16 +208,6 @@ pub trait Encoder<'en>: Sized {
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error>;
-
-    /// Begin encoding a struct.
-    /// This call must be followed by zero or more calls to `encode_field`, then `end`.
-    ///
-    /// `name` is the name of the struct and the `len` is the number of fields to encode.
-    fn encode_struct(
-        self,
-        name: &'static str,
-        len: usize,
-    ) -> Result<Self::EncodeStruct, Self::Error>;
 
     /// Begin encoding a statically sized sequence whose length will be known at decoding time
     /// without looking at the encoded data.

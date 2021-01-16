@@ -220,7 +220,7 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting a sequence of values.
     async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the `FromStream` type is expecting a unit struct with a particular name.
+    /// Hint that the `FromStream` type is expecting a unit value (i.e. `()`).
     async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a sequence of values and
@@ -233,10 +233,6 @@ pub trait Decoder: Send {
 
     /// Hint that the `FromStream` type is expecting a map of key-value pairs.
     async fn decode_map<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
-
-    /// Hint that the `FromStream` type is expecting the name of a struct
-    /// field or the discriminant of an enum variant.
-    async fn decode_identifier<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type needs to decode a value whose type
     /// doesn't matter because it is ignored.
