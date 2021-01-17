@@ -13,15 +13,6 @@
 //! standard library types. The complete list is below. All of these can be
 //! encoded automatically using `destream`.
 //!
-//! # The IntoStream trait
-//!
-//! Often when encoding a stream, a value needs to be encoded which may outlive the calling function
-//! context. For this reason, the `encode_map`, `encode_seq`, and `encode_stream` methods accept
-//! a value which implements `IntoStream`. A borrow of a `ToStream` value automatically implements
-//! `IntoStream`, so you can still call `encode_*` on a borrowed value, but with the advantage
-//! that you can also encode an owned value into a stream of any lifetime by implementing
-//! `IntoStream`.
-//!
 //! # Implementations of `ToStream` provided by `destream`
 //!
 //!  - **Primitive types**:
@@ -52,10 +43,24 @@
 //!    - VecDeque\<T\>
 //!    - Vec\<T\>
 //!
+//! # The IntoStream trait
+//!
+//! Often when encoding a stream, a value needs to be encoded which may outlive the calling function
+//! context. For this reason, the `encode_map`, `encode_seq`, and `encode_stream` methods accept
+//! a value which implements [`IntoStream`]. A borrow of a `ToStream` value automatically implements
+//! `IntoStream`, so you can still call `encode_*` on a borrowed value, but with the advantage
+//! that you can also encode an owned value into a stream of any lifetime by implementing
+//! `IntoStream`.
+//!
 //! # Implementations of `IntoStream` provided by `destream`
 //!
 //!  - All `ToStream` types above, except \[T; 0\] through \[T; 32\]
+//!    (&\[T; 0\] through \[T; 32\] are supported)
 //!  - &T and &mut T where T: ToStream
+//!  - Box<dyn Stream<Item = T>>
+//!  - Box<dyn Stream<Item = Result<T, E>>>
+//!  - Pin<Box<dyn Stream<Item = T>>>
+//!  - Pin<Box<dyn Stream<Item = Result<T, E>>>>
 
 use std::convert::Infallible;
 use std::fmt;
@@ -113,6 +118,9 @@ pub trait EncodeMap<'en> {
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
+/// Trait used to disambiguate a sequence from a map when encoding a stream.
+pub trait SeqEntry<'en>: IntoStream<'en> {}
+
 /// Returned from `Encoder::encode_seq`.
 pub trait EncodeSeq<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
@@ -122,7 +130,7 @@ pub trait EncodeSeq<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the sequence.
-    fn encode_element<T: IntoStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
+    fn encode_element<V: IntoStream<'en> + 'en>(&mut self, value: V) -> Result<(), Self::Error>;
 
     /// Finish encoding the sequence.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -137,7 +145,7 @@ pub trait EncodeTuple<'en> {
     type Error: Error + 'en;
 
     /// Encode the next element in the tuple.
-    fn encode_element<T: IntoStream<'en> + 'en>(&mut self, value: T) -> Result<(), Self::Error>;
+    fn encode_element<V: IntoStream<'en> + 'en>(&mut self, value: V) -> Result<(), Self::Error>;
 
     /// Finish encoding the tuple.
     fn end(self) -> Result<Self::Ok, Self::Error>;
@@ -233,7 +241,7 @@ pub trait Encoder<'en>: Sized {
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
     /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_stream<T: IntoStream<'en> + 'en, S: Stream<Item = T> + 'en>(
+    fn encode_seq_stream<T: SeqEntry<'en> + 'en, S: Stream<Item = T> + 'en>(
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error> {
@@ -243,7 +251,7 @@ pub trait Encoder<'en>: Sized {
     /// Given a stream of encodable values, return a stream encoded as a sequence.
     fn encode_seq_try_stream<
         E: fmt::Display + 'en,
-        T: IntoStream<'en> + 'en,
+        T: SeqEntry<'en> + 'en,
         S: Stream<Item = Result<T, E>> + 'en,
     >(
         self,

@@ -2,8 +2,11 @@ use std::collections::*;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
+use std::pin::Pin;
 
-use super::{EncodeTuple, Encoder, IntoStream, ToStream};
+use futures::Stream;
+
+use super::{EncodeTuple, Encoder, IntoStream, SeqEntry, ToStream};
 
 macro_rules! autoencode {
     ($ty:ident, $method:ident $($cast:tt)*) => {
@@ -344,3 +347,45 @@ macro_rules! encode_ref {
 
 encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a T where T: ToStream<'en> + 'en, 'a: 'en);
 encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a mut T where T: ToStream<'en> + 'en, 'a: 'en);
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl<'en, T: SeqEntry<'en> + 'en> IntoStream<'en> for Box<dyn Stream<Item = T> + Unpin + 'en> {
+    fn into_stream<E: Encoder<'en>>(
+        self,
+        encoder: E,
+    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
+        encoder.encode_seq_stream(self)
+    }
+}
+
+impl<'en, T: SeqEntry<'en> + 'en> IntoStream<'en> for Pin<Box<dyn Stream<Item = T> + Unpin + 'en>> {
+    fn into_stream<E: Encoder<'en>>(
+        self,
+        encoder: E,
+    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
+        encoder.encode_seq_stream(self)
+    }
+}
+
+impl<'en, Err: fmt::Display + 'en, T: SeqEntry<'en> + 'en> IntoStream<'en>
+    for Box<dyn Stream<Item = Result<T, Err>> + Unpin + 'en>
+{
+    fn into_stream<E: Encoder<'en>>(
+        self,
+        encoder: E,
+    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
+        encoder.encode_seq_try_stream(self)
+    }
+}
+
+impl<'en, Err: fmt::Display + 'en, T: SeqEntry<'en> + 'en> IntoStream<'en>
+    for Pin<Box<dyn Stream<Item = Result<T, Err>> + Unpin + 'en>>
+{
+    fn into_stream<E: Encoder<'en>>(
+        self,
+        encoder: E,
+    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
+        encoder.encode_seq_try_stream(self)
+    }
+}
