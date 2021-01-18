@@ -55,22 +55,51 @@
 //! # Implementations of `IntoStream` provided by `destream`
 //!
 //!  - All `ToStream` types above, except \[T; 0\] through \[T; 32\]
-//!    (&\[T; 0\] through \[T; 32\] are supported)
-//!  - &T and &mut T where T: ToStream
-//!  - Box<dyn Stream<Item = T>>
-//!  - Box<dyn Stream<Item = Result<T, E>>>
-//!  - Pin<Box<dyn Stream<Item = T>>>
-//!  - Pin<Box<dyn Stream<Item = Result<T, E>>>>
+//!  - &T and &mut T
+//!  - MapStream<Item = Result<(K, V), E>>
+//!  - SeqStream<Item = Result<T, E>>
 
 use std::convert::Infallible;
 use std::fmt;
 
-use futures::{Stream, StreamExt};
+use futures::Stream;
 
 mod impls;
 
 pub trait Error {
     fn custom<I: fmt::Display>(info: I) -> Self;
+}
+
+impl Error for Infallible {
+    fn custom<I: fmt::Display>(_info: I) -> Self {
+        panic!("Infallible operation failed!")
+    }
+}
+
+/// Disambiguates a map from a sequence when encoding a stream.
+pub struct MapStream<E, K, V, S: Stream<Item = Result<(K, V), E>>> {
+    source: S,
+}
+
+impl<
+        'en,
+        E: fmt::Display + 'en,
+        K: IntoStream<'en> + 'en,
+        V: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<(K, V), E>> + 'en,
+    > MapStream<E, K, V, S>
+{
+    fn into_inner(self) -> S {
+        self.source
+    }
+}
+
+impl<'en, E: 'en, K: 'en, V: 'en, S: Stream<Item = Result<(K, V), E>> + 'en> From<S>
+    for MapStream<E, K, V, S>
+{
+    fn from(source: S) -> Self {
+        Self { source }
+    }
 }
 
 /// Returned from `Encoder::encode_map`.
@@ -118,8 +147,28 @@ pub trait EncodeMap<'en> {
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
-/// Trait used to disambiguate a sequence from a map when encoding a stream.
-pub trait SeqEntry<'en>: IntoStream<'en> {}
+/// Disambiguates a sequence from a map when encoding a stream.
+pub struct SeqStream<E, T, S: Stream<Item = Result<T, E>>> {
+    source: S,
+}
+
+impl<
+        'en,
+        E: fmt::Display + 'en,
+        T: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<T, E>> + 'en,
+    > SeqStream<E, T, S>
+{
+    fn into_inner(self) -> S {
+        self.source
+    }
+}
+
+impl<'en, E: 'en, T: 'en, S: Stream<Item = Result<T, E>> + 'en> From<S> for SeqStream<E, T, S> {
+    fn from(source: S) -> Self {
+        Self { source }
+    }
+}
 
 /// Returned from `Encoder::encode_seq`.
 pub trait EncodeSeq<'en> {
@@ -233,6 +282,16 @@ pub trait Encoder<'en>: Sized {
     /// iterating over the map.
     fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
 
+    /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
+    fn encode_map_stream<
+        K: IntoStream<'en> + 'en,
+        V: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<(K, V), Self::Error>> + 'en,
+    >(
+        self,
+        map: S,
+    ) -> Result<Self::Ok, Self::Error>;
+
     /// Begin encoding a variably sized sequence.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
     ///
@@ -241,19 +300,7 @@ pub trait Encoder<'en>: Sized {
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
     /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_stream<T: SeqEntry<'en> + 'en, S: Stream<Item = T> + 'en>(
-        self,
-        seq: S,
-    ) -> Result<Self::Ok, Self::Error> {
-        self.encode_seq_try_stream(seq.map(Result::<T, Infallible>::Ok))
-    }
-
-    /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_try_stream<
-        E: fmt::Display + 'en,
-        T: SeqEntry<'en> + 'en,
-        S: Stream<Item = Result<T, E>> + 'en,
-    >(
+    fn encode_seq_stream<T: IntoStream<'en> + 'en, S: Stream<Item = Result<T, Self::Error>> + 'en>(
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error>;

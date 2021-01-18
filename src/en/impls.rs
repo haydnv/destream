@@ -2,11 +2,10 @@ use std::collections::*;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
-use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 
-use super::{EncodeTuple, Encoder, IntoStream, SeqEntry, ToStream};
+use super::{EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream};
 
 macro_rules! autoencode {
     ($ty:ident, $method:ident $($cast:tt)*) => {
@@ -350,42 +349,27 @@ encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a mut T where T: ToStream
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'en, T: SeqEntry<'en> + 'en> IntoStream<'en> for Box<dyn Stream<Item = T> + Unpin + 'en> {
-    fn into_stream<E: Encoder<'en>>(
-        self,
-        encoder: E,
-    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
-        encoder.encode_seq_stream(self)
-    }
-}
-
-impl<'en, T: SeqEntry<'en> + 'en> IntoStream<'en> for Pin<Box<dyn Stream<Item = T> + Unpin + 'en>> {
-    fn into_stream<E: Encoder<'en>>(
-        self,
-        encoder: E,
-    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
-        encoder.encode_seq_stream(self)
-    }
-}
-
-impl<'en, Err: fmt::Display + 'en, T: SeqEntry<'en> + 'en> IntoStream<'en>
-    for Box<dyn Stream<Item = Result<T, Err>> + Unpin + 'en>
+impl<
+        'en,
+        Err: fmt::Display + 'en,
+        K: IntoStream<'en> + 'en,
+        V: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<(K, V), Err>> + 'en,
+    > IntoStream<'en> for MapStream<Err, K, V, S>
 {
-    fn into_stream<E: Encoder<'en>>(
-        self,
-        encoder: E,
-    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
-        encoder.encode_seq_try_stream(self)
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_map_stream(self.into_inner().map_err(super::Error::custom))
     }
 }
 
-impl<'en, Err: fmt::Display + 'en, T: SeqEntry<'en> + 'en> IntoStream<'en>
-    for Pin<Box<dyn Stream<Item = Result<T, Err>> + Unpin + 'en>>
+impl<
+        'en,
+        Err: fmt::Display + 'en,
+        T: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<T, Err>> + 'en,
+    > IntoStream<'en> for SeqStream<Err, T, S>
 {
-    fn into_stream<E: Encoder<'en>>(
-        self,
-        encoder: E,
-    ) -> Result<<E as Encoder<'en>>::Ok, <E as Encoder<'en>>::Error> {
-        encoder.encode_seq_try_stream(self)
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_seq_stream(self.into_inner().map_err(super::Error::custom))
     }
 }

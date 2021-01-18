@@ -1,6 +1,6 @@
 //! Provides traits [`FromStream`], [`Decoder`], [`ToStream`] and [`Encoder`], which are
 //! streaming/async analogues of [`serde`]'s [`Deserialize`], [`Deserializer`], [`Serialize`],
-//! and [`Serializer`]
+//! and [`Serializer`].
 //!
 //! [`Deserialize`]:[`serde::de::Deserialize`]
 //! [`Deserializer`]:[`serde::de::Deserializer`]
@@ -20,9 +20,8 @@
 //!  - `destream` supports decoding from and encoding to a [`futures::stream::Stream`] (obviously)
 //!  - `destream` does not (yet) support the `derive` macro, so you can't derive `FromStream` or
 //!     `ToStream`, and there is no built-in functionality for decoding/encoding a given `struct`.
-//!  - `Decoder` assumes the static lifetime, but `Encoder` uses a specific lifetime `'en`. This
-//!     is the opposite of `serde`.
-//!
+//!  - `Decoder` assumes the static lifetime and only supports owned types, but `Encoder` uses a
+//!     specific lifetime `'en`. This is the opposite of `serde`.
 
 pub mod de;
 pub mod en;
