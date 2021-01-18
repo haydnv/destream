@@ -17,7 +17,7 @@
 //! respectively.
 //!
 //! Important differences between `destream` and `serde`:
-//!  - `destream` supports decoding from and encoding to a [`futures::stream::Stream`] (obviously)
+//!  - `destream` supports decoding from and encoding to a [`futures::Stream`] (obviously)
 //!  - `destream` does not (yet) support the `derive` macro, so you can't derive `FromStream` or
 //!     `ToStream`, and there is no built-in functionality for decoding/encoding a given `struct`.
 //!  - `Decoder` assumes the static lifetime and only supports owned types, but `Encoder` uses a

@@ -1,4 +1,4 @@
-//! Generic data structure deserialization framework based on [`serde::de`].
+//! Stream deserialization framework based on [`serde::de`].
 //!
 //! The two most important traits in this module are [`FromStream`] and [`Decoder`].
 //!
@@ -105,7 +105,7 @@ impl<'a> fmt::Display for dyn Expected + 'a {
 ///
 /// Based on [`serde::de::Error`].
 pub trait Error: Send + Sized + std::error::Error {
-    /// Raised when there is general error when deserializing a type.
+    /// Raised when there is general error when decoding a type.
     /// The message should not be capitalized and should not end with a period.
     fn custom<T: fmt::Display>(msg: T) -> Self;
 
@@ -167,8 +167,7 @@ pub trait Decoder: Send {
     /// `Decoder::decode_any` unless you need to be told by the
     /// Decoder what type is in the input. Know that relying on
     /// `Decoder::decode_any` means your data type will be able to
-    /// deserialize from self-describing formats only, ruling out Bincode and
-    /// many others.
+    /// decode self-describing formats only.
     async fn decode_any<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a `bool` value.
@@ -224,7 +223,7 @@ pub trait Decoder: Send {
     async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a sequence of values and
-    /// knows how many values there are without looking at the serialized data.
+    /// knows how many values there are without looking at the encoded data.
     async fn decode_tuple<V: Visitor>(
         &mut self,
         len: usize,
@@ -274,7 +273,7 @@ pub trait MapAccess: Send {
     /// This returns `Ok(Some((key, value)))` for the next (key-value) pair in
     /// the map, or `Ok(None)` if there are no more remaining items.
     ///
-    /// This method exists as a convenience for `Deserialize` implementations.
+    /// This method exists as a convenience for `FromStream` implementations.
     /// `MapAccess` implementations should not override the default behavior.
     async fn next_entry<K: FromStream, V: FromStream>(
         &mut self,
@@ -290,7 +289,7 @@ pub trait MapAccess: Send {
 /// Provides a `Visitor` access to each element of a sequence in the input.
 ///
 /// This is a trait that a `Decoder` passes to a `Visitor` implementation,
-/// which deserializes each item in a sequence.
+/// which decodes each item in a sequence.
 ///
 /// Based on [`serde::de::SeqAccess`].
 #[async_trait]

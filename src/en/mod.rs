@@ -1,4 +1,4 @@
-//! Generic data structure serialization framework based on [`serde::ser`].
+//! Streaming serialization framework based on [`serde::ser`].
 //!
 //! The two most important traits in this module are [`ToStream`] and [`Encoder`].
 //!
