@@ -22,6 +22,11 @@
 //!     `ToStream`, and there is no built-in functionality for decoding/encoding a given `struct`.
 //!  - `Decoder` assumes the static lifetime and only supports owned types, but `Encoder` uses a
 //!     specific lifetime `'en`. This is the opposite of `serde`.
+//!
+//! `destream` itself does not implement support for any specific serialization format.
+//! [`destream_json`] provides support for streaming JSON.
+//!
+//! [`destream_json`]: http://docs.rs/destream_json/
 
 pub mod de;
 pub mod en;
