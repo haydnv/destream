@@ -354,7 +354,7 @@ impl<
         Err: fmt::Display + 'en,
         K: IntoStream<'en> + 'en,
         V: IntoStream<'en> + 'en,
-        S: Stream<Item = Result<(K, V), Err>> + 'en,
+        S: Stream<Item = Result<(K, V), Err>> + Send + Unpin + 'en,
     > IntoStream<'en> for MapStream<Err, K, V, S>
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
@@ -366,7 +366,7 @@ impl<
         'en,
         Err: fmt::Display + 'en,
         T: IntoStream<'en> + 'en,
-        S: Stream<Item = Result<T, Err>> + 'en,
+        S: Stream<Item = Result<T, Err>> + Send + Unpin + 'en,
     > IntoStream<'en> for SeqStream<Err, T, S>
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {

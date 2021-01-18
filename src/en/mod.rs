@@ -286,7 +286,7 @@ pub trait Encoder<'en>: Sized {
     fn encode_map_stream<
         K: IntoStream<'en> + 'en,
         V: IntoStream<'en> + 'en,
-        S: Stream<Item = Result<(K, V), Self::Error>> + 'en,
+        S: Stream<Item = Result<(K, V), Self::Error>> + Send + Unpin + 'en,
     >(
         self,
         map: S,
@@ -300,7 +300,10 @@ pub trait Encoder<'en>: Sized {
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
     /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_stream<T: IntoStream<'en> + 'en, S: Stream<Item = Result<T, Self::Error>> + 'en>(
+    fn encode_seq_stream<
+        T: IntoStream<'en> + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
         self,
         seq: S,
     ) -> Result<Self::Ok, Self::Error>;
