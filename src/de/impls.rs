@@ -456,3 +456,28 @@ decode_map!(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
+
+struct UnitVisitor;
+
+impl Visitor for UnitVisitor {
+    type Value = ();
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("a unit value ()")
+    }
+
+    fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
+        Ok(())
+    }
+
+    fn visit_none<E: Error>(self) -> Result<Self::Value, E> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl FromStream for () {
+    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+        decoder.decode_unit(UnitVisitor).await
+    }
+}
