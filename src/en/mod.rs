@@ -105,10 +105,10 @@ impl<'en, E: 'en, K: 'en, V: 'en, S: Stream<Item = Result<(K, V), E>> + 'en> Fro
 /// Returned from `Encoder::encode_map`.
 pub trait EncodeMap<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok: Stream + 'en;
+    type Ok: Stream + Send + Unpin + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error + 'en;
+    type Error: Error + Send + Unpin + 'en;
 
     /// Encode a map key.
     ///
@@ -173,10 +173,10 @@ impl<'en, E: 'en, T: 'en, S: Stream<Item = Result<T, E>> + 'en> From<S> for SeqS
 /// Returned from `Encoder::encode_seq`.
 pub trait EncodeSeq<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok: Stream + 'en;
+    type Ok: Stream + Send + Unpin + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error + 'en;
+    type Error: Error + Send + Unpin + 'en;
 
     /// Encode the next element in the sequence.
     fn encode_element<V: IntoStream<'en> + 'en>(&mut self, value: V) -> Result<(), Self::Error>;
@@ -188,10 +188,10 @@ pub trait EncodeSeq<'en> {
 /// Returned from `Encoder::encode_tuple`.
 pub trait EncodeTuple<'en> {
     /// Must match the `Ok` type of the parent `Encoder`.
-    type Ok: Stream + 'en;
+    type Ok: Stream + Send + Unpin + 'en;
 
     /// Must match the `Error` type of the parent `Encoder`.
-    type Error: Error + 'en;
+    type Error: Error + Send + Unpin + 'en;
 
     /// Encode the next element in the tuple.
     fn encode_element<V: IntoStream<'en> + 'en>(&mut self, value: V) -> Result<(), Self::Error>;
@@ -205,10 +205,10 @@ pub trait EncodeTuple<'en> {
 /// Based on [`serde::ser::Serializer`].
 pub trait Encoder<'en>: Sized {
     /// The output type produced by this `Encoder`.
-    type Ok: Stream + 'en;
+    type Ok: Stream + Send + Unpin + 'en;
 
     /// The type returned when an encoding error is encountered.
-    type Error: Error + 'en;
+    type Error: Error + Send + Unpin + 'en;
 
     /// Type returned from [`encode_map`] for streaming the content of the map.
     ///
