@@ -1,5 +1,4 @@
 use std::collections::*;
-use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
@@ -13,14 +12,19 @@ macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
         #[async_trait]
         impl FromStream for $ty {
-            async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+            type Context = ();
+
+            async fn from_stream<D: Decoder>(
+                _context: Self::Context,
+                decoder: &mut D,
+            ) -> Result<Self, D::Error> {
                 struct AutoVisitor;
 
                 impl Visitor for AutoVisitor {
                     type Value = $ty;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str(stringify!($ty))
+                    fn expecting() -> &'static str {
+                        stringify!($ty)
                     }
 
                     #[inline]
@@ -50,7 +54,8 @@ autodecode!(String, visit_string, decode_string);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct OptionVisitor<T> {
+struct OptionVisitor<T: FromStream> {
+    context: T::Context,
     marker: PhantomData<T>,
 }
 
@@ -58,8 +63,8 @@ struct OptionVisitor<T> {
 impl<T: FromStream> Visitor for OptionVisitor<T> {
     type Value = Option<T>;
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "optional {}", std::any::type_name::<T>())
+    fn expecting() -> &'static str {
+        stringify!("optional {}", std::any::type_name::<T>())
     }
 
     #[inline]
@@ -79,16 +84,23 @@ impl<T: FromStream> Visitor for OptionVisitor<T> {
     }
 
     async fn visit_some<D: Decoder>(self, decoder: &mut D) -> Result<Self::Value, D::Error> {
-        T::from_stream(decoder).map_ok(Some).await
+        T::from_stream(self.context, decoder).map_ok(Some).await
     }
 }
 
 #[async_trait]
 impl<T: FromStream> FromStream for Option<T> {
-    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+    type Context = T::Context;
+
+    async fn from_stream<D: Decoder>(
+        context: Self::Context,
+        decoder: &mut D,
+    ) -> Result<Self, D::Error> {
         let visitor = OptionVisitor {
+            context,
             marker: PhantomData,
         };
+
         decoder.decode_option(visitor).await
     }
 }
@@ -102,8 +114,8 @@ struct PhantomDataVisitor<T: ?Sized> {
 impl<T: Send + ?Sized> Visitor for PhantomDataVisitor<T> {
     type Value = PhantomData<T>;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("unit")
+    fn expecting() -> &'static str {
+        "unit"
     }
 
     #[inline]
@@ -114,7 +126,9 @@ impl<T: Send + ?Sized> Visitor for PhantomDataVisitor<T> {
 
 #[async_trait]
 impl<T: Send + ?Sized> FromStream for PhantomData<T> {
-    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
         let visitor = PhantomDataVisitor {
             marker: PhantomData,
         };
@@ -139,28 +153,33 @@ macro_rules! decode_seq {
         where
             T: FromStream $(+ $tbound1 $(+ $tbound2)*)*,
             $($typaram: $bound1 $(+ $bound2)*,)*
+            T::Context: Copy
         {
-            async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
-                struct SeqVisitor<T $(, $typaram)*> {
+            type Context = T::Context;
+
+            async fn from_stream<D: Decoder>(context: Self::Context, decoder: &mut D) -> Result<Self, D::Error> {
+                struct SeqVisitor<C, T $(, $typaram)*> {
+                    context: C,
                     marker: PhantomData<$ty<T $(, $typaram)*>>,
                 }
 
                 #[async_trait]
-                impl<T $(, $typaram)*> Visitor for SeqVisitor<T $(, $typaram)*>
+                impl<T $(, $typaram)*> Visitor for SeqVisitor<T::Context, T $(, $typaram)*>
                 where
                     T: FromStream $(+ $tbound1 $(+ $tbound2)*)*,
                     $($typaram: $bound1 $(+ $bound2)*,)*
+                    T::Context: Copy
                 {
                     type Value = $ty<T $(, $typaram)*>;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a sequence")
+                    fn expecting() -> &'static str {
+                        "a sequence"
                     }
 
                     async fn visit_seq<A: SeqAccess>(self, mut $access: A) -> Result<Self::Value, A::Error> {
                         let mut values = $with_capacity;
 
-                        while let Some(value) = $access.next_element().await? {
+                        while let Some(value) = $access.next_element(self.context).await? {
                             $insert(&mut values, value);
                         }
 
@@ -168,7 +187,7 @@ macro_rules! decode_seq {
                     }
                 }
 
-                let visitor = SeqVisitor { marker: PhantomData };
+                let visitor = SeqVisitor { context, marker: PhantomData };
                 decoder.decode_seq(visitor).await
             }
         }
@@ -231,39 +250,48 @@ decode_seq!(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct ArrayVisitor<T> {
+struct ArrayVisitor<C, T> {
+    context: C,
     marker: PhantomData<T>,
 }
 
-impl<T> ArrayVisitor<T> {
-    fn new() -> Self {
+impl<C, T> ArrayVisitor<C, T> {
+    fn new(context: C) -> Self {
         ArrayVisitor {
+            context,
             marker: PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl<T: FromStream> Visitor for ArrayVisitor<[T; 0]> {
+impl<T: FromStream> Visitor for ArrayVisitor<T::Context, [T; 0]> {
     type Value = [T; 0];
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a zero-length tuple")
+    fn expecting() -> &'static str {
+        "a zero-length tuple"
     }
 
     async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let next: Option<T> = seq.next_element().await?;
+        let next: Option<T> = seq.next_element(self.context).await?;
         match next {
             None => Ok([]),
-            Some(_) => Err(Error::invalid_length(0, &self)),
+            Some(_) => Err(Error::invalid_length(0, Self::expecting())),
         }
     }
 }
 
 #[async_trait]
 impl<T: FromStream> FromStream for [T; 0] {
-    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, <D as Decoder>::Error> {
-        decoder.decode_tuple(0, ArrayVisitor::<[T; 0]>::new()).await
+    type Context = T::Context;
+
+    async fn from_stream<D: Decoder>(
+        context: T::Context,
+        decoder: &mut D,
+    ) -> Result<Self, <D as Decoder>::Error> {
+        decoder
+            .decode_tuple(0, ArrayVisitor::<T::Context, [T; 0]>::new(context))
+            .await
     }
 }
 
@@ -271,27 +299,39 @@ macro_rules! decode_array {
     ($($len:expr => ($($n:tt)+))+) => {
         $(
             #[async_trait]
-            impl<T: FromStream> Visitor for ArrayVisitor<[T; $len]> {
+            impl<T: FromStream> Visitor for ArrayVisitor<T::Context, [T; $len]>
+            where T::Context: Copy
+            {
                 type Value = [T; $len];
 
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    formatter.write_str(concat!("an array of length ", $len))
+                fn expecting() -> &'static str {
+                    concat!("an array of length ", $len)
                 }
 
-                async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                async fn visit_seq<A: SeqAccess>(
+                    self,
+                    mut seq: A
+                ) -> Result<Self::Value, A::Error> {
                     Ok([$(
-                        match seq.next_element().await? {
+                        match seq.next_element(self.context).await? {
                             Some(val) => val,
-                            None => return Err(Error::invalid_length($n, &self)),
+                            None => return Err(Error::invalid_length($n, Self::expecting())),
                         }
                     ),+])
                 }
             }
 
             #[async_trait]
-            impl<T: FromStream> FromStream for [T; $len] {
-                async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
-                    decoder.decode_tuple($len, ArrayVisitor::<[T; $len]>::new()).await
+            impl<T: FromStream> FromStream for [T; $len] where T::Context: Copy {
+                type Context = T::Context;
+
+                async fn from_stream<D: Decoder>(
+                    context: T::Context,
+                    decoder: &mut D
+                ) -> Result<Self, D::Error> {
+                    decoder.decode_tuple(
+                        $len,
+                        ArrayVisitor::<T::Context, [T; $len]>::new(context)).await
                 }
             }
         )+
@@ -339,26 +379,28 @@ macro_rules! decode_tuple {
     ($($len:tt => ($($n:tt $name:ident)+))+) => {
         $(
             #[async_trait]
-            impl<$($name: FromStream),+> FromStream for ($($name,)+) {
-                async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+            impl<$($name: FromStream<Context = ()>),+> FromStream for ($($name,)+) {
+                type Context = ();
+
+                async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
                     struct TupleVisitor<$($name,)+> {
                         marker: PhantomData<($($name,)+)>,
                     }
 
                     #[async_trait]
                     #[allow(non_snake_case)]
-                    impl<$($name: FromStream),+> Visitor for TupleVisitor<$($name,)+> {
+                    impl<$($name: FromStream<Context = ()>),+> Visitor for TupleVisitor<$($name,)+> {
                         type Value = ($($name,)+);
 
-                        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                            formatter.write_str(concat!("a tuple of size ", $len))
+                        fn expecting() -> &'static str {
+                            concat!("a tuple of size ", $len)
                         }
 
                         async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                             $(
-                                let $name = match seq.next_element().await? {
+                                let $name = match seq.next_element(()).await? {
                                     Some(value) => value,
-                                    None => return Err(Error::invalid_length($n, &self)),
+                                    None => return Err(Error::invalid_length($n, Self::expecting())),
                                 };
                             )+
 
@@ -403,11 +445,16 @@ macro_rules! decode_map {
         #[async_trait]
         impl<K, V $(, $typaram)*> FromStream for $ty<K, V $(, $typaram)*>
         where
-            K: FromStream $(+ $kbound1 $(+ $kbound2)*)*,
-            V: FromStream,
+            K: FromStream<Context = ()> $(+ $kbound1 $(+ $kbound2)*)*,
+            V: FromStream<Context = ()>,
             $($typaram: $bound1 $(+ $bound2)*),*
         {
-            async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+            type Context = ();
+
+            async fn from_stream<D: Decoder>(
+                _context: (),
+                decoder: &mut D
+            ) -> Result<Self, D::Error> {
                 struct MapVisitor<K, V $(, $typaram)*> {
                     marker: PhantomData<$ty<K, V $(, $typaram)*>>,
                 }
@@ -415,20 +462,24 @@ macro_rules! decode_map {
                 #[async_trait]
                 impl<K, V $(, $typaram)*> Visitor for MapVisitor<K, V $(, $typaram)*>
                 where
-                    K: FromStream $(+ $kbound1 $(+ $kbound2)*)*,
-                    V: FromStream,
+                    K: FromStream<Context = ()> $(+ $kbound1 $(+ $kbound2)*)*,
+                    V: FromStream<Context = ()>,
                     $($typaram: $bound1 $(+ $bound2)*),*
                 {
                     type Value = $ty<K, V $(, $typaram)*>;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a map")
+                    fn expecting() -> &'static str {
+                        "a map"
                     }
 
-                    async fn visit_map<A: MapAccess>(self, mut $access: A) -> Result<Self::Value, A::Error> {
+                    async fn visit_map<A: MapAccess>(
+                        self,
+                        mut $access: A
+                    ) -> Result<Self::Value, A::Error> {
                         let mut values = $with_capacity;
 
-                        while let Some((key, value)) = $access.next_entry().await? {
+                        while let Some(key) = $access.next_key(()).await? {
+                            let value = $access.next_value(()).await?;
                             values.insert(key, value);
                         }
 
@@ -462,8 +513,8 @@ struct UnitVisitor;
 impl Visitor for UnitVisitor {
     type Value = ();
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("a unit value ()")
+    fn expecting() -> &'static str {
+        "a unit value ()"
     }
 
     fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
@@ -477,7 +528,9 @@ impl Visitor for UnitVisitor {
 
 #[async_trait]
 impl FromStream for () {
-    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
         decoder.decode_unit(UnitVisitor).await
     }
 }

@@ -51,53 +51,6 @@ mod size_hint {
     }
 }
 
-/// `Expected` represents an explanation of what data a `Visitor` was expecting to receive.
-///
-/// This is used as an argument to the `invalid_type`, `invalid_value`, and
-/// `invalid_length` methods of the `Error` trait to build error messages. The
-/// message should be a noun or noun phrase that completes the sentence "This
-/// Visitor expects to receive ...", for example the message could be "an
-/// integer between 0 and 64". The message should not be capitalized and should
-/// not end with a period.
-///
-/// Within the context of a `Visitor` implementation, the `Visitor` itself
-/// (`&self`) is an implementation of this trait.
-pub trait Expected {
-    /// Format an explanation of what data was being expected. Same signature as
-    /// the `Display` and `Debug` traits.
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result;
-}
-
-impl<V: Visitor> Expected for V {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.expecting(f)
-    }
-}
-
-impl Expected for str {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self)
-    }
-}
-
-impl Expected for &'static str {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self)
-    }
-}
-
-impl Expected for String {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self)
-    }
-}
-
-impl<'a> fmt::Display for dyn Expected + 'a {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Expected::fmt(self, f)
-    }
-}
-
 /// The `Error` trait allows `FromStream` implementations to create descriptive
 /// error messages belonging to their `Decoder` context.
 ///
@@ -111,45 +64,20 @@ pub trait Error: Send + Sized + std::error::Error {
     fn custom<T: fmt::Display>(msg: T) -> Self;
 
     /// Raised when `FromStream` receives a type different from what it was expecting.
-    fn invalid_type<U: fmt::Display>(unexp: U, exp: &dyn Expected) -> Self {
+    fn invalid_type<U: fmt::Display, E: fmt::Display>(unexp: U, exp: E) -> Self {
         Error::custom(format_args!("invalid type: {}, expected {}", unexp, exp))
     }
 
     /// Raised when `FromStream` receives a value of the right type but that
     /// is wrong for some other reason.
-    fn invalid_value<U: fmt::Display>(unexp: U, exp: &dyn Expected) -> Self {
+    fn invalid_value<U: fmt::Display, E: fmt::Display>(unexp: U, exp: E) -> Self {
         Error::custom(format_args!("invalid value: {}, expected {}", unexp, exp))
     }
 
     /// Raised when decoding a sequence or map and the input data contains too many
     /// or too few elements.
-    fn invalid_length(len: usize, exp: &dyn Expected) -> Self {
+    fn invalid_length<E: fmt::Display>(len: usize, exp: E) -> Self {
         Error::custom(format_args!("invalid length: {}, expected {}", len, exp))
-    }
-
-    /// Raised when `FromStream` receives a field with an unrecognized name.
-    fn unknown_field(field: &str, expected: &'static [&'static str]) -> Self {
-        if expected.is_empty() {
-            Error::custom(format!("unknown field `{}`, there are no fields", field))
-        } else {
-            Error::custom(format!(
-                "unknown field `{}`, expected one of {}",
-                field,
-                expected.join(", ")
-            ))
-        }
-    }
-
-    /// Raised when `FromStream` expected to receive a required
-    /// field with a particular name but that field was not present in the
-    /// input.
-    fn missing_field(field: &'static str) -> Self {
-        Error::custom(format_args!("missing field `{}`", field))
-    }
-
-    /// Raised when `FromStream` receives more than one of the same field.
-    fn duplicate_field(field: &'static str) -> Self {
-        Error::custom(format_args!("duplicate field `{}`", field))
     }
 }
 
@@ -247,13 +175,22 @@ pub trait Decoder: Send {
 /// Based on [`serde::de::Deserialize`].
 #[async_trait]
 pub trait FromStream: Send + Sized {
+    /// The decoding context of this type, useful in situations where the stream to be decoded
+    /// may be too large to hold in main memory.
+    ///
+    /// Types intended to be stored entirely in main memory should use the unit context `()`.
+    type Context: Send;
+
     /// Parse this value using the given `Decoder`.
-    async fn from_stream<D: Decoder>(decoder: &mut D) -> Result<Self, D::Error>;
+    async fn from_stream<D: Decoder>(
+        context: Self::Context,
+        decoder: &mut D,
+    ) -> Result<Self, D::Error>;
 }
 
-/// Provides a `Visitor` access to each entry of a map in the input.
+/// Provides a [`Visitor`] access to each entry of a map in the input.
 ///
-/// This is a trait that a `Decoder` passes to a `Visitor` implementation.
+/// This is a trait that a [`Decoder`] passes to a `Visitor` implementation.
 #[async_trait]
 pub trait MapAccess: Send {
     /// Type to return in case of a decoding error.
@@ -261,24 +198,24 @@ pub trait MapAccess: Send {
 
     /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
     /// if there are no more remaining entries.
-    async fn next_key<K: FromStream>(&mut self) -> Result<Option<K>, Self::Error>;
+    ///
+    /// `context` is the decoder context used by `K`'s `FromStream` impl.
+    /// If `K` is small enough to fit in main memory, pass the unit context `()`.
+    async fn next_key<K: FromStream>(
+        &mut self,
+        context: K::Context,
+    ) -> Result<Option<K>, Self::Error>;
 
-    /// This returns a `Ok(value)` for the next value in the map.
+    /// This returns `Ok(value)` for the next value in the map.
+    ///
+    /// `context` is the decoder context used by `V`'s `FromStream` impl.
+    /// If `V` is small enough to fit in main memory, pass the unit context `()`.
     ///
     /// # Panics
     ///
     /// Calling `next_value` before `next_key` is incorrect and is allowed to
     /// panic or return bogus results.
-    async fn next_value<V: FromStream>(&mut self) -> Result<V, Self::Error>;
-
-    /// This returns `Ok(Some((key, value)))` for the next (key-value) pair in
-    /// the map, or `Ok(None)` if there are no more remaining items.
-    ///
-    /// This method exists as a convenience for `FromStream` implementations.
-    /// `MapAccess` implementations should not override the default behavior.
-    async fn next_entry<K: FromStream, V: FromStream>(
-        &mut self,
-    ) -> Result<Option<(K, V)>, Self::Error>;
+    async fn next_value<V: FromStream>(&mut self, context: V::Context) -> Result<V, Self::Error>;
 
     /// Returns the number of entries remaining in the map, if known.
     #[inline]
@@ -287,9 +224,9 @@ pub trait MapAccess: Send {
     }
 }
 
-/// Provides a `Visitor` access to each element of a sequence in the input.
+/// Provides a [`Visitor`] access to each element of a sequence in the input.
 ///
-/// This is a trait that a `Decoder` passes to a `Visitor` implementation,
+/// This is a trait that a [`Decoder`] passes to a `Visitor` implementation,
 /// which decodes each item in a sequence.
 ///
 /// Based on [`serde::de::SeqAccess`].
@@ -300,7 +237,13 @@ pub trait SeqAccess: Send {
 
     /// Returns `Ok(Some(value))` for the next value in the sequence,
     /// or `Ok(None)` if there are no more remaining items.
-    async fn next_element<T: FromStream>(&mut self) -> Result<Option<T>, Self::Error>;
+    ///
+    /// `context` is the decoder context used by `T`'s `FromStream` impl.
+    /// If `T` is small enough to fit in main memory, pass the unit context `()`.
+    async fn next_element<T: FromStream>(
+        &mut self,
+        context: T::Context,
+    ) -> Result<Option<T>, Self::Error>;
 
     /// Returns the number of elements remaining in the sequence, if known.
     #[inline]
@@ -323,13 +266,13 @@ pub trait Visitor: Send + Sized {
     /// "This Visitor expects to receive ...", for example the message could be
     /// "an integer between 0 and 64". The message should not be capitalized and
     /// should not end with a period.
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result;
+    fn expecting() -> &'static str;
 
     /// The input contains a boolean.
     ///
     /// The default implementation fails with a type error.
     fn visit_bool<E: Error>(self, v: bool) -> Result<Self::Value, E> {
-        Err(Error::invalid_type(v, &self))
+        Err(Error::invalid_type(v, Self::expecting()))
     }
 
     /// The input contains an `i8`.
@@ -366,7 +309,7 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     fn visit_i64<E: Error>(self, v: i64) -> Result<Self::Value, E> {
-        Err(Error::invalid_type(v, &self))
+        Err(Error::invalid_type(v, Self::expecting()))
     }
 
     /// The input contains a `u8`.
@@ -403,7 +346,7 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     fn visit_u64<E: Error>(self, v: u64) -> Result<Self::Value, E> {
-        Err(Error::invalid_type(v, &self))
+        Err(Error::invalid_type(v, Self::expecting()))
     }
 
     /// The input contains an `f32`.
@@ -420,7 +363,7 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
-        Err(Error::invalid_type(v, &self))
+        Err(Error::invalid_type(v, Self::expecting()))
     }
 
     /// The input contains a string and ownership of the string is being given
@@ -428,7 +371,7 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
-        Err(Error::invalid_type(v, &self))
+        Err(Error::invalid_type(v, Self::expecting()))
     }
 
     /// The input contains a byte array and ownership of the byte array is being
@@ -436,37 +379,37 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     fn visit_byte_buf<E: Error>(self, _v: Vec<u8>) -> Result<Self::Value, E> {
-        Err(Error::invalid_type("(byte array)", &self))
+        Err(Error::invalid_type("(byte array)", Self::expecting()))
     }
 
     /// The input contains a unit `()`.
     ///
     /// The default implementation fails with a type error.
     fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
-        Err(Error::invalid_type("unit", &self))
+        Err(Error::invalid_type("unit", Self::expecting()))
     }
 
     /// The input contains an optional that is absent.
     /// The default implementation fails with a type error.
     fn visit_none<E: Error>(self) -> Result<Self::Value, E> {
-        Err(Error::invalid_type("Option::None", &self))
+        Err(Error::invalid_type("Option::None", Self::expecting()))
     }
 
     /// The input contains an optional that is present.
     /// The default implementation fails with a type error.
     async fn visit_some<D: Decoder>(self, _decoder: &mut D) -> Result<Self::Value, D::Error> {
-        Err(Error::invalid_type("Option::Some", &self))
+        Err(Error::invalid_type("Option::Some", Self::expecting()))
     }
 
     /// The input contains a key-value map.
     /// The default implementation fails with a type error.
     async fn visit_map<A: MapAccess>(self, _map: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("map", &self))
+        Err(Error::invalid_type("map", Self::expecting()))
     }
 
     /// The input contains a sequence of elements.
     /// The default implementation fails with a type error.
     async fn visit_seq<A: SeqAccess>(self, _seq: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("sequence", &self))
+        Err(Error::invalid_type("sequence", Self::expecting()))
     }
 }

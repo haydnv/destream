@@ -1,10 +1,10 @@
 [package]
 name = "destream"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["haydnv"]
 edition = "2018"
 license = "Apache-2.0"
-description = "Library for async steam (de)serialization"
+description = "Library for async stream (de)serialization"
 repository = "http://github.com/haydnv/destream"
 readme = "README.md"
 
