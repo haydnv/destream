@@ -26,6 +26,8 @@
 //!    - String
 //!    - Option\<T\>
 //!    - PhantomData\<T\>
+//!  - **Other common types**:
+//!    - Bytes
 //!  - **Collection types**:
 //!    - BTreeMap\<K, V\>
 //!    - BTreeSet\<T\>

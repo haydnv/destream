@@ -31,6 +31,8 @@
 //!    - Option\<T\>
 //!    - Result\<T, E\>
 //!    - PhantomData\<T\>
+//!  - **Other common types**:
+//!    - Bytes
 //!  - **Wrapper types**:
 //!    - Box\<T\>
 //!  - **Collection types**:
@@ -260,6 +262,9 @@ pub trait Encoder<'en>: Sized {
 
     /// Encode a `&str`.
     fn encode_str(self, v: &str) -> Result<Self::Ok, Self::Error>;
+
+    /// Encode a byte buffer.
+    fn encode_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error>;
 
     /// Encode a [`None`] value.
     ///

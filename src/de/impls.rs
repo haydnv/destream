@@ -3,6 +3,7 @@ use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use futures::future::TryFutureExt;
 
 use super::size_hint;
@@ -51,6 +52,31 @@ autodecode!(u64, visit_u64, decode_u64);
 autodecode!(f32, visit_f32, decode_f32);
 autodecode!(f64, visit_f64, decode_f64);
 autodecode!(String, visit_string, decode_string);
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct BytesVisitor;
+
+impl Visitor for BytesVisitor {
+    type Value = Bytes;
+
+    fn expecting() -> &'static str {
+        "a byte buffer"
+    }
+
+    fn visit_byte_buf<E: Error>(self, buf: Vec<u8>) -> Result<Self::Value, E> {
+        Ok(Bytes::from(buf))
+    }
+}
+
+#[async_trait]
+impl FromStream for Bytes {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_: (), decoder: &mut D) -> Result<Self, D::Error> {
+        decoder.decode_byte_buf(BytesVisitor).await
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
