@@ -40,6 +40,20 @@ autoencode!(f64, encode_f64);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+impl<'en> IntoStream<'en> for () {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_unit()
+    }
+}
+
+impl<'en> ToStream<'en> for () {
+    fn to_stream<E: Encoder<'en>>(&self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_unit()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 impl<'a, 'en> IntoStream<'en> for &'a str
 where
     'a: 'en,
