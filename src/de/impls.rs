@@ -8,6 +8,7 @@ use futures::future::TryFutureExt;
 
 use super::size_hint;
 use super::{Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
+use std::convert::TryInto;
 
 macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
@@ -52,6 +53,26 @@ autodecode!(u64, visit_u64, decode_u64);
 autodecode!(f32, visit_f32, decode_f32);
 autodecode!(f64, visit_f64, decode_f64);
 autodecode!(String, visit_string, decode_string);
+
+#[async_trait]
+impl FromStream for isize {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(cxt: (), decoder: &mut D) -> Result<Self, D::Error> {
+        let n: i64 = FromStream::from_stream(cxt, decoder).await?;
+        n.try_into().map_err(Error::custom)
+    }
+}
+
+#[async_trait]
+impl FromStream for usize {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(cxt: (), decoder: &mut D) -> Result<Self, D::Error> {
+        let n: u64 = FromStream::from_stream(cxt, decoder).await?;
+        n.try_into().map_err(Error::custom)
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
