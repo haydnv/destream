@@ -260,6 +260,17 @@ pub trait Encoder<'en>: Sized {
     /// Encode an `f64` value.
     fn encode_f64(self, v: f64) -> Result<Self::Ok, Self::Error>;
 
+    /// Encode an array of `bool`s.
+    fn encode_array_bool<
+        T: IntoIterator<Item = bool> + Send + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + 'en;
+
     /// Encode a `&str`.
     fn encode_str(self, v: &str) -> Result<Self::Ok, Self::Error>;
 

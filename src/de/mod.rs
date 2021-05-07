@@ -134,6 +134,9 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting a `f64` value.
     async fn decode_f64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
+    /// Hint that the `FromStream` type is expecting an array of `bool`s.
+    async fn decode_array_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
     /// Hint that the `FromStream` type is expecting a string value.
     async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
@@ -188,6 +191,13 @@ pub trait FromStream: Send + Sized {
         context: Self::Context,
         decoder: &mut D,
     ) -> Result<Self, D::Error>;
+}
+
+#[async_trait]
+pub trait ArrayAccess<T>: Send {
+    type Error: Error;
+
+    async fn buffer(&mut self, buffer: &mut [T]) -> Result<usize, Self::Error>;
 }
 
 /// Provides a [`Visitor`] access to each entry of a map in the input.
@@ -366,6 +376,13 @@ pub trait Visitor: Send + Sized {
     /// The default implementation fails with a type error.
     fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
         Err(Error::invalid_type(v, Self::expecting()))
+    }
+
+    async fn visit_array_bool<A: ArrayAccess<bool>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("boolean array", Self::expecting()))
     }
 
     /// The input contains a string and ownership of the string is being given
