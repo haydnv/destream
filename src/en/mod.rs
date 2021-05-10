@@ -262,14 +262,14 @@ pub trait Encoder<'en>: Sized {
 
     /// Encode an array of `bool`s.
     fn encode_array_bool<
-        T: IntoIterator<Item = bool> + Send + 'en,
+        T: IntoIterator<Item = bool> + Send + Unpin + 'en,
         S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
     >(
         self,
         chunks: S,
     ) -> Result<Self::Ok, Self::Error>
     where
-        <T as IntoIterator>::IntoIter: Send + 'en;
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode a `&str`.
     fn encode_str(self, v: &str) -> Result<Self::Ok, Self::Error>;
