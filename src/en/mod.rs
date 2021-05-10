@@ -282,6 +282,105 @@ pub trait Encoder<'en>: Sized {
     where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
+    /// Encode an array of `i16`s.
+    fn encode_array_i16<
+        T: IntoIterator<Item = i16> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `i32`s.
+    fn encode_array_i32<
+        T: IntoIterator<Item = i32> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `i64`s.
+    fn encode_array_i64<
+        T: IntoIterator<Item = i64> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `u8`s.
+    fn encode_array_u8<
+        T: IntoIterator<Item = u8> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `u16`s.
+    fn encode_array_u16<
+        T: IntoIterator<Item = u16> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `u32`s.
+    fn encode_array_u32<
+        T: IntoIterator<Item = u32> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `u64`s.
+    fn encode_array_u64<
+        T: IntoIterator<Item = u64> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `f32`s.
+    fn encode_array_f32<
+        T: IntoIterator<Item = f32> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
+    /// Encode an array of `f64`s.
+    fn encode_array_f64<
+        T: IntoIterator<Item = f64> + Send + Unpin + 'en,
+        S: Stream<Item = Result<T, Self::Error>> + Send + Unpin + 'en,
+    >(
+        self,
+        chunks: S,
+    ) -> Result<Self::Ok, Self::Error>
+    where
+        <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
+
     /// Encode a `&str`.
     fn encode_str(self, v: &str) -> Result<Self::Ok, Self::Error>;
 

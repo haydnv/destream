@@ -137,8 +137,35 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting an array of `bool`s.
     async fn decode_array_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the `FromStream` type is expecting an array of `bool`s.
+    /// Hint that the `FromStream` type is expecting an array of `i8`s.
     async fn decode_array_i8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `i16`s.
+    async fn decode_array_i16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `i32`s.
+    async fn decode_array_i32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `i64`s.
+    async fn decode_array_i64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `u8`s.
+    async fn decode_array_u8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `u16`s.
+    async fn decode_array_u16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `u32`s.
+    async fn decode_array_u32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `u64`s.
+    async fn decode_array_u64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `f32`s.
+    async fn decode_array_f32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the `FromStream` type is expecting an array of `f64`s.
+    async fn decode_array_f64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the `FromStream` type is expecting a string value.
     async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
@@ -391,14 +418,98 @@ pub trait Visitor: Send + Sized {
         Err(Error::invalid_type("boolean array", Self::expecting()))
     }
 
-    /// The input contains an array of `bool`s.
+    /// The input contains an array of `i8`s.
     ///
     /// The default implementation fails with a type error.
-    async fn visit_array_i8<A: ArrayAccess<bool>>(
+    async fn visit_array_i8<A: ArrayAccess<i8>>(self, _array: A) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("i8 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `i16`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_i16<A: ArrayAccess<i16>>(
         self,
         _array: A,
     ) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("i8 array", Self::expecting()))
+        Err(Error::invalid_type("i16 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `i32`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_i32<A: ArrayAccess<i32>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("i32 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `i64`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_i64<A: ArrayAccess<i64>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("i64 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `u8`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_u8<A: ArrayAccess<u8>>(self, _array: A) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("u8 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `u16`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_u16<A: ArrayAccess<u16>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("u16 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `u32`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_u32<A: ArrayAccess<u32>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("u32 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `u64`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_u64<A: ArrayAccess<u64>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("u64 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `f32`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_f32<A: ArrayAccess<f32>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("f32 array", Self::expecting()))
+    }
+
+    /// The input contains an array of `f64`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_f64<A: ArrayAccess<f64>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("f64 array", Self::expecting()))
     }
 
     /// The input contains a string and ownership of the string is being given
