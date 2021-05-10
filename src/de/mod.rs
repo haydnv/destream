@@ -137,6 +137,9 @@ pub trait Decoder: Send {
     /// Hint that the `FromStream` type is expecting an array of `bool`s.
     async fn decode_array_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
+    /// Hint that the `FromStream` type is expecting an array of `bool`s.
+    async fn decode_array_i8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
     /// Hint that the `FromStream` type is expecting a string value.
     async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
@@ -378,11 +381,24 @@ pub trait Visitor: Send + Sized {
         Err(Error::invalid_type(v, Self::expecting()))
     }
 
+    /// The input contains an array of `bool`s.
+    ///
+    /// The default implementation fails with a type error.
     async fn visit_array_bool<A: ArrayAccess<bool>>(
         self,
         _array: A,
     ) -> Result<Self::Value, A::Error> {
         Err(Error::invalid_type("boolean array", Self::expecting()))
+    }
+
+    /// The input contains an array of `bool`s.
+    ///
+    /// The default implementation fails with a type error.
+    async fn visit_array_i8<A: ArrayAccess<bool>>(
+        self,
+        _array: A,
+    ) -> Result<Self::Value, A::Error> {
+        Err(Error::invalid_type("i8 array", Self::expecting()))
     }
 
     /// The input contains a string and ownership of the string is being given
