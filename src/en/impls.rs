@@ -402,3 +402,23 @@ impl<
         encoder.encode_seq_stream(self.into_inner().map_err(super::Error::custom))
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl<'en, T: IntoStream<'en>, Err: IntoStream<'en>> IntoStream<'en> for Result<T, Err> {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        match self {
+            Self::Ok(value) => value.into_stream(encoder),
+            Self::Err(error) => error.into_stream(encoder),
+        }
+    }
+}
+
+impl<'en, T: ToStream<'en>, Err: ToStream<'en>> ToStream<'en> for Result<T, Err> {
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        match self {
+            Self::Ok(value) => value.to_stream(encoder),
+            Self::Err(error) => error.to_stream(encoder),
+        }
+    }
+}
