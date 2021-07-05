@@ -4,7 +4,7 @@ use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
 use bytes::Bytes;
-use futures::{Stream, TryStreamExt};
+use futures::Stream;
 
 use super::{EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream};
 
@@ -380,26 +380,21 @@ encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a mut T where T: ToStream
 
 impl<
         'en,
-        Err: fmt::Display + 'en,
         K: IntoStream<'en> + 'en,
         V: IntoStream<'en> + 'en,
-        S: Stream<Item = Result<(K, V), Err>> + Send + Unpin + 'en,
-    > IntoStream<'en> for MapStream<Err, K, V, S>
+        S: Stream<Item = (K, V)> + Send + Unpin + 'en,
+    > IntoStream<'en> for MapStream<K, V, S>
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
-        encoder.encode_map_stream(self.into_inner().map_err(super::Error::custom))
+        encoder.encode_map_stream(self.into_inner())
     }
 }
 
-impl<
-        'en,
-        Err: fmt::Display + 'en,
-        T: IntoStream<'en> + 'en,
-        S: Stream<Item = Result<T, Err>> + Send + Unpin + 'en,
-    > IntoStream<'en> for SeqStream<Err, T, S>
+impl<'en, T: IntoStream<'en> + 'en, S: Stream<Item = T> + Send + Unpin + 'en> IntoStream<'en>
+    for SeqStream<T, S>
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
-        encoder.encode_seq_stream(self.into_inner().map_err(super::Error::custom))
+        encoder.encode_seq_stream(self.into_inner())
     }
 }
 
