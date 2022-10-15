@@ -115,6 +115,15 @@ impl Visitor for UuidVisitor {
     }
 }
 
+#[async_trait]
+impl FromStream for Uuid {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_: (), decoder: &mut D) -> Result<Self, D::Error> {
+        decoder.decode_string(UuidVisitor).await
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct OptionVisitor<T: FromStream> {

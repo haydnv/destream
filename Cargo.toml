@@ -1,6 +1,6 @@
 [package]
 name = "destream"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["haydn@tinychain.net"]
 edition = "2018"
 license = "Apache-2.0"
@@ -16,4 +16,4 @@ async-trait = "0.1"
 bytes = "1.0"
 futures = "0.3"
 serde = "1.0"
-uuid = { version = "1.1", features=["v4"] }
+uuid = { version = "1.2", features=["v4"] }
