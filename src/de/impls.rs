@@ -1,14 +1,15 @@
 use std::collections::*;
+use std::convert::TryInto;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures::future::TryFutureExt;
+use uuid::Uuid;
 
 use super::size_hint;
 use super::{Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
-use std::convert::TryInto;
 
 macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
@@ -96,6 +97,21 @@ impl FromStream for Bytes {
 
     async fn from_stream<D: Decoder>(_: (), decoder: &mut D) -> Result<Self, D::Error> {
         decoder.decode_byte_buf(BytesVisitor).await
+    }
+}
+
+struct UuidVisitor;
+
+impl Visitor for UuidVisitor {
+    type Value = Uuid;
+
+    fn expecting() -> &'static str {
+        "a UUID"
+    }
+
+    fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+        v.parse()
+            .map_err(|cause| E::invalid_value(v, format!("{} ({})", Self::expecting(), cause)))
     }
 }
 

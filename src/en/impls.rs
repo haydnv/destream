@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 
 use bytes::Bytes;
 use futures::Stream;
+use uuid::Uuid;
 
 use super::{EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream};
 
@@ -119,6 +120,18 @@ impl<'en> ToStream<'en> for Bytes {
 impl<'en> IntoStream<'en> for Bytes {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_bytes(&self)
+    }
+}
+
+impl<'en> ToStream<'en> for Uuid {
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_str(&self.to_string())
+    }
+}
+
+impl<'en> IntoStream<'en> for Uuid {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_str(&self.to_string())
     }
 }
 

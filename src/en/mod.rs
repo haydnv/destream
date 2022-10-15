@@ -33,6 +33,7 @@
 //!    - PhantomData\<T\>
 //!  - **Other common types**:
 //!    - Bytes
+//!    - Uuid
 //!  - **Wrapper types**:
 //!    - Box\<T\>
 //!  - **Collection types**:
