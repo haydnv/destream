@@ -4,9 +4,7 @@ use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use bytes::Bytes;
 use futures::future::TryFutureExt;
-use uuid::Uuid;
 
 use super::size_hint;
 use super::{Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
@@ -72,55 +70,6 @@ impl FromStream for usize {
     async fn from_stream<D: Decoder>(cxt: (), decoder: &mut D) -> Result<Self, D::Error> {
         let n: u64 = FromStream::from_stream(cxt, decoder).await?;
         n.try_into().map_err(Error::custom)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-struct BytesVisitor;
-
-impl Visitor for BytesVisitor {
-    type Value = Bytes;
-
-    fn expecting() -> &'static str {
-        "a byte buffer"
-    }
-
-    fn visit_byte_buf<E: Error>(self, buf: Vec<u8>) -> Result<Self::Value, E> {
-        Ok(Bytes::from(buf))
-    }
-}
-
-#[async_trait]
-impl FromStream for Bytes {
-    type Context = ();
-
-    async fn from_stream<D: Decoder>(_: (), decoder: &mut D) -> Result<Self, D::Error> {
-        decoder.decode_byte_buf(BytesVisitor).await
-    }
-}
-
-struct UuidVisitor;
-
-impl Visitor for UuidVisitor {
-    type Value = Uuid;
-
-    fn expecting() -> &'static str {
-        "a UUID"
-    }
-
-    fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
-        v.parse()
-            .map_err(|cause| E::invalid_value(v, format!("{} ({})", Self::expecting(), cause)))
-    }
-}
-
-#[async_trait]
-impl FromStream for Uuid {
-    type Context = ();
-
-    async fn from_stream<D: Decoder>(_: (), decoder: &mut D) -> Result<Self, D::Error> {
-        decoder.decode_string(UuidVisitor).await
     }
 }
 

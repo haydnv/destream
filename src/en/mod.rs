@@ -1,4 +1,4 @@
-//! Streaming serialization framework based on [`serde::ser`].
+//! Streaming serialization framework based on `serde::ser`.
 //!
 //! The two most important traits in this module are [`ToStream`] and [`Encoder`].
 //!
@@ -31,9 +31,6 @@
 //!    - Option\<T\>
 //!    - Result\<T, E\>
 //!    - PhantomData\<T\>
-//!  - **Other common types**:
-//!    - Bytes
-//!    - Uuid
 //!  - **Wrapper types**:
 //!    - Box\<T\>
 //!  - **Collection types**:
@@ -69,6 +66,7 @@ use futures::Stream;
 
 mod impls;
 
+/// A stream encoding error
 pub trait Error {
     fn custom<I: fmt::Display>(info: I) -> Self;
 }
@@ -79,7 +77,7 @@ impl Error for Infallible {
     }
 }
 
-/// Disambiguates a map from a sequence when encoding a stream.
+/// Disambiguate a map from a sequence when encoding a stream.
 pub struct MapStream<K, V, S: Stream<Item = (K, V)>> {
     source: S,
 }
@@ -100,10 +98,10 @@ impl<'en, K: 'en, V: 'en, S: Stream<Item = (K, V)> + 'en> From<S> for MapStream<
 
 /// Returned from `Encoder::encode_map`.
 pub trait EncodeMap<'en> {
-    /// Must match the `Ok` type of the parent `Encoder`.
+    /// Must match the `Ok` type of the parent [`Encoder`].
     type Ok: Stream + Send + Unpin + 'en;
 
-    /// Must match the `Error` type of the parent `Encoder`.
+    /// Must match the `Error` type of the parent [`Encoder`].
     type Error: Error + Send + Unpin + 'en;
 
     /// Encode a map key.
@@ -143,7 +141,7 @@ pub trait EncodeMap<'en> {
     fn end(self) -> Result<Self::Ok, Self::Error>;
 }
 
-/// Disambiguates a sequence from a map when encoding a stream.
+/// Disambiguate a sequence from a map when encoding a stream.
 pub struct SeqStream<T, S: Stream<Item = T>> {
     source: S,
 }
@@ -162,10 +160,10 @@ impl<'en, T: 'en, S: Stream<Item = T> + 'en> From<S> for SeqStream<T, S> {
 
 /// Returned from `Encoder::encode_seq`.
 pub trait EncodeSeq<'en> {
-    /// Must match the `Ok` type of the parent `Encoder`.
+    /// Must match the `Ok` type of the parent [`Encoder`].
     type Ok: Stream + Send + Unpin + 'en;
 
-    /// Must match the `Error` type of the parent `Encoder`.
+    /// Must match the `Error` type of the parent [`Encoder`].
     type Error: Error + Send + Unpin + 'en;
 
     /// Encode the next element in the sequence.
@@ -177,10 +175,10 @@ pub trait EncodeSeq<'en> {
 
 /// Returned from `Encoder::encode_tuple`.
 pub trait EncodeTuple<'en> {
-    /// Must match the `Ok` type of the parent `Encoder`.
+    /// Must match the `Ok` type of the parent [`Encoder`].
     type Ok: Stream + Send + Unpin + 'en;
 
-    /// Must match the `Error` type of the parent `Encoder`.
+    /// Must match the `Error` type of the parent [`Encoder`].
     type Error: Error + Send + Unpin + 'en;
 
     /// Encode the next element in the tuple.
@@ -192,9 +190,9 @@ pub trait EncodeTuple<'en> {
 
 /// A data format that can encode and stream any data structure supported by destream.
 ///
-/// Based on [`serde::ser::Serializer`].
+/// Based on `serde::ser::Serializer`.
 pub trait Encoder<'en>: Sized {
-    /// The output type produced by this `Encoder`.
+    /// The output type produced by this [`Encoder`].
     type Ok: Stream + Send + Unpin + 'en;
 
     /// The type returned when an encoding error is encountered.
@@ -249,131 +247,84 @@ pub trait Encoder<'en>: Sized {
     fn encode_f64(self, v: f64) -> Result<Self::Ok, Self::Error>;
 
     /// Encode an array of `bool`s.
-    fn encode_array_bool<
+    fn encode_array_bool<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = bool> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `i8`s.
-    fn encode_array_i8<
+    fn encode_array_i8<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = i8> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `i16`s.
-    fn encode_array_i16<
+    fn encode_array_i16<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = i16> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `i32`s.
-    fn encode_array_i32<
+    fn encode_array_i32<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = i32> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `i64`s.
-    fn encode_array_i64<
+    fn encode_array_i64<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = i64> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `u8`s.
-    fn encode_array_u8<
+    fn encode_array_u8<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = u8> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `u16`s.
-    fn encode_array_u16<
+    fn encode_array_u16<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = u16> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `u32`s.
-    fn encode_array_u32<
+    fn encode_array_u32<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = u32> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `u64`s.
-    fn encode_array_u64<
+    fn encode_array_u64<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = u64> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `f32`s.
-    fn encode_array_f32<
+    fn encode_array_f32<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = f32> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode an array of `f64`s.
-    fn encode_array_f64<
+    fn encode_array_f64<T, S>(self, chunks: S) -> Result<Self::Ok, Self::Error>
+    where
         T: IntoIterator<Item = f64> + Send + Unpin + 'en,
         S: Stream<Item = T> + Send + Unpin + 'en,
-    >(
-        self,
-        chunks: S,
-    ) -> Result<Self::Ok, Self::Error>
-    where
         <T as IntoIterator>::IntoIter: Send + Unpin + 'en;
 
     /// Encode a `&str`.
     fn encode_str(self, v: &str) -> Result<Self::Ok, Self::Error>;
-
-    /// Encode a byte buffer.
-    fn encode_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error>;
 
     /// Encode a [`None`] value.
     ///
@@ -397,14 +348,11 @@ pub trait Encoder<'en>: Sized {
     fn encode_map(self, len: Option<usize>) -> Result<Self::EncodeMap, Self::Error>;
 
     /// Given a stream of encodable key-value pairs, return a stream encoded as a map.
-    fn encode_map_stream<
+    fn encode_map_stream<K, V, S>(self, map: S) -> Result<Self::Ok, Self::Error>
+    where
         K: IntoStream<'en> + 'en,
         V: IntoStream<'en> + 'en,
-        S: Stream<Item = (K, V)> + Send + Unpin + 'en,
-    >(
-        self,
-        map: S,
-    ) -> Result<Self::Ok, Self::Error>;
+        S: Stream<Item = (K, V)> + Send + Unpin + 'en;
 
     /// Begin encoding a variably sized sequence.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
@@ -414,10 +362,10 @@ pub trait Encoder<'en>: Sized {
     fn encode_seq(self, len: Option<usize>) -> Result<Self::EncodeSeq, Self::Error>;
 
     /// Given a stream of encodable values, return a stream encoded as a sequence.
-    fn encode_seq_stream<T: IntoStream<'en> + 'en, S: Stream<Item = T> + Send + Unpin + 'en>(
-        self,
-        seq: S,
-    ) -> Result<Self::Ok, Self::Error>;
+    fn encode_seq_stream<T, S>(self, seq: S) -> Result<Self::Ok, Self::Error>
+    where
+        T: IntoStream<'en> + 'en,
+        S: Stream<Item = T> + Send + Unpin + 'en;
 
     /// Begin encoding a statically sized sequence whose length will be known at decoding time
     /// without looking at the encoded data.
@@ -430,10 +378,11 @@ pub trait Encoder<'en>: Sized {
     /// Implementors should not need to override this method.
     ///
     /// [`encode_seq`]: #tymethod.encode_seq
-    fn collect_seq<T: IntoStream<'en> + 'en, I: IntoIterator<Item = T>>(
-        self,
-        iter: I,
-    ) -> Result<Self::Ok, Self::Error> {
+    fn collect_seq<T, I>(self, iter: I) -> Result<Self::Ok, Self::Error>
+    where
+        T: IntoStream<'en> + 'en,
+        I: IntoIterator<Item = T>,
+    {
         let iter = iter.into_iter();
         let mut encoder = self.encode_seq(iterator_len_hint(&iter))?;
         for item in iter {
@@ -478,8 +427,8 @@ pub trait ToStream<'en> {
 
 /// A data structure that can be serialized into any supported stream encoding.
 ///
-/// This trait is automatically implemented for a borrow of `ToStream`, so prefer implementing
-/// `ToStream` itself.
+/// This trait is automatically implemented for a borrow of [`ToStream`], so prefer implementing
+/// [`ToStream`] itself.
 pub trait IntoStream<'en> {
     /// Take ownership of this value and serialize it into the given encoder.
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error>;

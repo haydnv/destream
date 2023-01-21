@@ -1,19 +1,16 @@
 [package]
 name = "destream"
-version = "0.5.2"
-authors = ["haydn@tinychain.net"]
-edition = "2018"
+version = "0.6.0"
+authors = ["code@tinychain.net"]
+edition = "2021"
 license = "Apache-2.0"
 description = "Library for async stream (de)serialization"
 repository = "https://github.com/haydnv/destream"
 readme = "README.md"
 
 categories = ["asynchronous", "encoding", "parsing", "rust-patterns"]
-keywords = ["json", "stream", "streaming", "serialize", "deserialize"]
+keywords = ["stream", "streaming", "serialize", "deserialize"]
 
 [dependencies]
 async-trait = "0.1"
-bytes = "1.0"
 futures = "0.3"
-serde = "1.0"
-uuid = { version = "1.2", features=["v4"] }
