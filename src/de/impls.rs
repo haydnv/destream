@@ -4,10 +4,12 @@ use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use futures::future::TryFutureExt;
+use uuid::Uuid;
 
 use super::size_hint;
-use super::{Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
+use super::{ArrayAccess, Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
 
 macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
@@ -553,5 +555,121 @@ impl FromStream for () {
 
     async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
         decoder.decode_unit(UnitVisitor).await
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct BytesVisitor;
+
+#[async_trait]
+impl Visitor for BytesVisitor {
+    type Value = Bytes;
+
+    fn expecting() -> &'static str {
+        "bytes"
+    }
+
+    async fn visit_array_u8<A: ArrayAccess<u8>>(
+        self,
+        mut array: A,
+    ) -> Result<Self::Value, A::Error> {
+        const BUF_SIZE: usize = 4_096;
+        let mut bytes = Vec::<u8>::new();
+
+        let mut buf = [0u8; BUF_SIZE];
+        loop {
+            let len = array.buffer(&mut buf).await?;
+            bytes.extend_from_slice(&buf[..len]);
+            if len == BUF_SIZE {
+                break;
+            }
+        }
+
+        Ok(bytes.into())
+    }
+
+    fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+        use base64::engine::general_purpose::STANDARD;
+        use base64::engine::Engine;
+
+        STANDARD
+            .decode(&v)
+            .map(Bytes::from)
+            .map_err(|_cause| Error::invalid_value(v, "a base64-encoded string"))
+    }
+
+    async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let mut bytes = Vec::<u8>::new();
+
+        while let Some(byte) = seq.next_element(()).await? {
+            bytes.push(byte);
+        }
+
+        bytes.shrink_to_fit();
+        Ok(bytes.into())
+    }
+}
+
+#[async_trait]
+impl FromStream for Bytes {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(
+        _context: Self::Context,
+        decoder: &mut D,
+    ) -> Result<Self, D::Error> {
+        decoder.decode_bytes(BytesVisitor).await
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct UuidVisitor;
+
+#[async_trait]
+impl Visitor for UuidVisitor {
+    type Value = Uuid;
+
+    fn expecting() -> &'static str {
+        "a Uuid"
+    }
+
+    async fn visit_array_u8<A: ArrayAccess<u8>>(
+        self,
+        mut array: A,
+    ) -> Result<Self::Value, A::Error> {
+        let mut buf = [0u8; 16];
+        let len = array.buffer(&mut buf).await?;
+        if len == buf.len() {
+            Ok(Uuid::from_bytes(buf))
+        } else {
+            Err(Error::invalid_length(len, Self::expecting()))
+        }
+    }
+
+    fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+        v.parse()
+            .map_err(|_cause| E::invalid_value(v, Self::expecting()))
+    }
+
+    async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        type Fields = (u32, u16, u16, [u8; 8]);
+
+        let one = seq.expect_next::<u32>(()).await?;
+        let two = seq.expect_next::<u16>(()).await?;
+        let three = seq.expect_next::<u16>(()).await?;
+        let four = seq.expect_next::<[u8; 8]>(()).await?;
+
+        Ok(Uuid::from_fields(one, two, three, &four))
+    }
+}
+
+#[async_trait]
+impl FromStream for Uuid {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
+        decoder.decode_uuid(UuidVisitor).await
     }
 }

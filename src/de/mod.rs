@@ -26,6 +26,9 @@
 //!    - String
 //!    - Option\<T\>
 //!    - PhantomData\<T\>
+//!  - **Other common types**:
+//!    - Bytes
+//!    - Uuid
 //!  - **Collection types**:
 //!    - BTreeMap\<K, V\>
 //!    - BTreeSet\<T\>
@@ -93,7 +96,6 @@ pub trait Decoder: Send {
     /// on what data type is in the input.
     ///
     /// When implementing [`FromStream`], you should avoid relying on
-    /// When implementing [`FromStream`], you should avoid relying on
     /// `Decoder::decode_any` unless you need to be told by the
     /// Decoder what type is in the input. Know that relying on
     /// `Decoder::decode_any` means your data type will be able to
@@ -102,6 +104,9 @@ pub trait Decoder: Send {
 
     /// Hint that the [`FromStream`] type is expecting a `bool` value.
     async fn decode_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the [`FromStream`] type is expecting a binary value.
+    async fn decode_bytes<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the [`FromStream`] type is expecting an `i8` value.
     async fn decode_i8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
@@ -166,8 +171,8 @@ pub trait Decoder: Send {
     /// Hint that the [`FromStream`] type is expecting an array of `f64`s.
     async fn decode_array_f64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the [`FromStream`] type is expecting a string value.
-    async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    /// Hint that the [`FromStream`] type is expecting a map of key-value pairs.
+    async fn decode_map<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the [`FromStream`] type is expecting an optional value.
     ///
@@ -179,8 +184,8 @@ pub trait Decoder: Send {
     /// Hint that the [`FromStream`] type is expecting a sequence of values.
     async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the [`FromStream`] type is expecting a unit value (i.e. `()`).
-    async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    /// Hint that the [`FromStream`] type is expecting a string value.
+    async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the [`FromStream`] type is expecting a sequence of values and
     /// knows how many values there are without looking at the encoded data.
@@ -190,8 +195,11 @@ pub trait Decoder: Send {
         visitor: V,
     ) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the [`FromStream`] type is expecting a map of key-value pairs.
-    async fn decode_map<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    /// Hint that the [`FromStream`] type is expecting a unit value (i.e. `()`).
+    async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+
+    /// Hint that the [`FromStream`] type is expecting a [`Uuid`].
+    async fn decode_uuid<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the [`FromStream`] type needs to decode a value whose type
     /// doesn't matter because it is ignored.
@@ -282,7 +290,7 @@ pub trait SeqAccess: Send {
     type Error: Error;
 
     /// Returns `Ok(Some(value))` for the next value in the sequence,
-    /// or `Ok(None)` if there are no more remaining items.
+    /// or `Ok(None)` if there is no next item of type `T`.
     ///
     /// `context` is the decoder context used by `T`'s [`FromStream`] impl.
     /// If `T` is small enough to fit in main memory, pass the unit context `()`.
@@ -290,6 +298,19 @@ pub trait SeqAccess: Send {
         &mut self,
         context: T::Context,
     ) -> Result<Option<T>, Self::Error>;
+
+    /// Returns `Ok(Some(value))` for the next value in the sequence,
+    /// or an error if there is no next item or it's not the required type.
+    ///
+    /// `context` is the decoder context used by `T`'s [`FromStream`] impl.
+    /// If `T` is small enough to fit in main memory, pass the unit context `()`.
+    async fn expect_next<T: FromStream>(&mut self, context: T::Context) -> Result<T, Self::Error> {
+        if let Some(element) = self.next_element(context).await? {
+            Ok(element)
+        } else {
+            Err(Error::custom("expected sequence element is missing"))
+        }
+    }
 
     /// Returns the number of elements remaining in the sequence, if known.
     #[inline]

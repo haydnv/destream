@@ -3,7 +3,9 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
+use bytes::Bytes;
 use futures::stream::Stream;
+use uuid::Uuid;
 
 use super::{EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream};
 
@@ -363,20 +365,21 @@ encode_ref!(<'a, 'en, T: ?Sized> IntoStream<'en> for &'a mut T where T: ToStream
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<
-        'en,
-        K: IntoStream<'en> + 'en,
-        V: IntoStream<'en> + 'en,
-        S: Stream<Item = (K, V)> + Send + Unpin + 'en,
-    > IntoStream<'en> for MapStream<K, V, S>
+impl<'en, K, V, S> IntoStream<'en> for MapStream<K, V, S>
+where
+    K: IntoStream<'en> + 'en,
+    V: IntoStream<'en> + 'en,
+    S: Stream<Item = (K, V)> + Send + Unpin + 'en,
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_map_stream(self.into_inner())
     }
 }
 
-impl<'en, T: IntoStream<'en> + 'en, S: Stream<Item = T> + Send + Unpin + 'en> IntoStream<'en>
-    for SeqStream<T, S>
+impl<'en, T, S> IntoStream<'en> for SeqStream<T, S>
+where
+    T: IntoStream<'en> + 'en,
+    S: Stream<Item = T> + Send + Unpin + 'en,
 {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
         encoder.encode_seq_stream(self.into_inner())
@@ -400,5 +403,33 @@ impl<'en, T: ToStream<'en>, Err: ToStream<'en>> ToStream<'en> for Result<T, Err>
             Self::Ok(value) => value.to_stream(encoder),
             Self::Err(error) => error.to_stream(encoder),
         }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl<'en> IntoStream<'en> for Bytes {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_bytes(self)
+    }
+}
+
+impl<'en> ToStream<'en> for Bytes {
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.collect_bytes(self.iter().copied())
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+impl<'en> IntoStream<'en> for Uuid {
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_uuid(self)
+    }
+}
+
+impl<'en> ToStream<'en> for Uuid {
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.encode_uuid(*self)
     }
 }

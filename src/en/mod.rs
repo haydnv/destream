@@ -31,6 +31,9 @@
 //!    - Option\<T\>
 //!    - Result\<T, E\>
 //!    - PhantomData\<T\>
+//!  - **Other common types**:
+//!    - Bytes
+//!    - Uuid
 //!  - **Wrapper types**:
 //!    - Box\<T\>
 //!  - **Collection types**:
@@ -62,7 +65,9 @@
 use std::convert::Infallible;
 use std::fmt;
 
+use bytes::Bytes;
 use futures::Stream;
+use uuid::Uuid;
 
 mod impls;
 
@@ -339,6 +344,12 @@ pub trait Encoder<'en>: Sized {
     /// Encode a `()` value.
     fn encode_unit(self) -> Result<Self::Ok, Self::Error>;
 
+    /// Encode a binary value.
+    fn encode_bytes<B: Into<Bytes>>(self, bytes: B) -> Result<Self::Ok, Self::Error>;
+
+    /// Encode a Uuid.
+    fn encode_uuid(self, uuid: Uuid) -> Result<Self::Ok, Self::Error>;
+
     /// Begin encoding a map.
     /// This call must be followed by zero or more calls to `encode_key` and `encode_value`,
     /// then `end`.
@@ -371,6 +382,9 @@ pub trait Encoder<'en>: Sized {
     /// without looking at the encoded data.
     /// This call must be followed by zero or more calls to `encode_element`, then `end`.
     fn encode_tuple(self, len: usize) -> Result<Self::EncodeTuple, Self::Error>;
+
+    /// Collect an iterator of bytes.
+    fn collect_bytes<B: IntoIterator<Item = u8>>(self, bytes: B) -> Result<Self::Ok, Self::Error>;
 
     /// Collect an iterator as a sequence.
     ///
