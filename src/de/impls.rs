@@ -580,9 +580,10 @@ impl Visitor for BytesVisitor {
         let mut buf = [0u8; BUF_SIZE];
         loop {
             let len = array.buffer(&mut buf).await?;
-            bytes.extend_from_slice(&buf[..len]);
-            if len == BUF_SIZE {
+            if len == 0 {
                 break;
+            } else {
+                bytes.extend_from_slice(&buf[..len]);
             }
         }
 
