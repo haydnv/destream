@@ -14,6 +14,6 @@ keywords = ["stream", "streaming", "serialize", "deserialize"]
 [dependencies]
 async-trait = "0.1"
 base64 = "0.21"
-bytes = "1.3"
+bytes = "1.4"
 futures = "0.3"
 uuid = "1.2"
