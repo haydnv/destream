@@ -655,8 +655,6 @@ impl Visitor for UuidVisitor {
     }
 
     async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        type Fields = (u32, u16, u16, [u8; 8]);
-
         let one = seq.expect_next::<u32>(()).await?;
         let two = seq.expect_next::<u16>(()).await?;
         let three = seq.expect_next::<u16>(()).await?;

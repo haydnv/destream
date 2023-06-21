@@ -1,4 +1,4 @@
-//! Stream deserialization framework based on `serde::de`.
+//! Stream deserialization framework with an interface based on `serde::de`.
 //!
 //! The two most important traits in this module are [`FromStream`] and [`Decoder`].
 //!

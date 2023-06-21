@@ -28,5 +28,7 @@
 pub mod de;
 pub mod en;
 
-pub use de::*;
-pub use en::*;
+pub use de::{ArrayAccess, Decoder, FromStream, MapAccess, SeqAccess, Visitor};
+pub use en::{
+    EncodeMap, EncodeSeq, EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream,
+};
