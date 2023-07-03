@@ -198,7 +198,7 @@ pub trait Decoder: Send {
     /// Hint that the [`FromStream`] type is expecting a unit value (i.e. `()`).
     async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
-    /// Hint that the [`FromStream`] type is expecting a [`Uuid`].
+    /// Hint that the [`FromStream`] type is expecting a [`uuid::Uuid`].
     async fn decode_uuid<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
 
     /// Hint that the [`FromStream`] type needs to decode a value whose type
