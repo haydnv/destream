@@ -248,6 +248,26 @@ encode_seq!(LinkedList<T>);
 encode_seq!(Vec<T>);
 encode_seq!(VecDeque<T>);
 
+#[cfg(feature = "smallvec")]
+impl<'en, A: smallvec::Array> IntoStream<'en> for smallvec::SmallVec<A>
+where
+    A::Item: IntoStream<'en> + 'en,
+{
+    fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.collect_seq(self)
+    }
+}
+
+#[cfg(feature = "smallvec")]
+impl<'en, A: smallvec::Array> ToStream<'en> for smallvec::SmallVec<A>
+where
+    A::Item: ToStream<'en> + 'en,
+{
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        encoder.collect_seq(self)
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 macro_rules! encode_tuple {

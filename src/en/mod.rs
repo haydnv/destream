@@ -61,6 +61,8 @@
 //!  - &T and &mut T
 //!  - MapStream<Item = Result<(K, V), E>>
 //!  - SeqStream<Item = Result<T, E>>
+//!
+//! Enable support for [`smallvec::SmallVec`] using the `smallvec` feature flag.
 
 use std::convert::Infallible;
 use std::fmt;

@@ -271,6 +271,60 @@ decode_seq!(
     Vec::push
 );
 
+#[cfg(feature = "smallvec")]
+#[async_trait]
+impl<T: Send, const N: usize> FromStream for smallvec::SmallVec<[T; N]>
+where
+    [T; N]: smallvec::Array,
+    <[T; N] as smallvec::Array>::Item: FromStream<Context = ()>,
+{
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(
+        context: Self::Context,
+        decoder: &mut D,
+    ) -> Result<Self, D::Error> {
+        struct SeqVisitor<T, const N: usize> {
+            context: (),
+            value: PhantomData<T>,
+        }
+
+        #[async_trait]
+        impl<T: Send, const N: usize> Visitor for SeqVisitor<T, N>
+        where
+            [T; N]: smallvec::Array,
+            <[T; N] as smallvec::Array>::Item: FromStream<Context = ()>,
+        {
+            type Value = smallvec::SmallVec<[T; N]>;
+
+            fn expecting() -> &'static str {
+                "a stack-allocated sequence"
+            }
+
+            async fn visit_seq<A: SeqAccess>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut items = if let Some(size_hint) = seq.size_hint() {
+                    smallvec::SmallVec::with_capacity(size_hint)
+                } else {
+                    smallvec::SmallVec::new()
+                };
+
+                while let Some(item) = seq.next_element(self.context).await? {
+                    items.push(item);
+                }
+
+                Ok(items)
+            }
+        }
+
+        decoder
+            .decode_seq(SeqVisitor {
+                context,
+                value: PhantomData,
+            })
+            .await
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ArrayVisitor<C, T> {
@@ -517,11 +571,7 @@ macro_rules! decode_map {
     }
 }
 
-decode_map!(
-    BTreeMap<K: Ord, V>,
-    map,
-    BTreeMap::new()
-);
+decode_map!(BTreeMap<K: Ord, V>, map, BTreeMap::new());
 
 decode_map!(
     HashMap<K: Eq + Hash, V, S: BuildHasher + Default + Send>,

@@ -38,6 +38,8 @@
 //!    - LinkedList\<T\>
 //!    - VecDeque\<T\>
 //!    - Vec\<T\>
+//!
+//! Enable support for [`smallvec::SmallVec`] using the `smallvec` feature flag.
 
 use std::fmt;
 
