@@ -35,6 +35,7 @@
 //!    - Bytes
 //!    - Uuid
 //!  - **Wrapper types**:
+//!    - Arc\<T\>
 //!    - Box\<T\>
 //!  - **Collection types**:
 //!    - BTreeMap\<K, V\>
@@ -57,12 +58,12 @@
 //!
 //! # Implementations of `IntoStream` provided by `destream`
 //!
-//!  - All `ToStream` types above, except \[T; 0\] through \[T; 32\]
+//!  - All `ToStream` types above, except \[T; 0\] through \[T; 32\] and Arc\<T\>
 //!  - &T and &mut T
 //!  - MapStream<Item = Result<(K, V), E>>
 //!  - SeqStream<Item = Result<T, E>>
 //!
-//! Enable support for [`smallvec::SmallVec`] using the `smallvec` feature flag.
+//! Enable support for `SmallVec` using the `smallvec` feature flag.
 
 use std::convert::Infallible;
 use std::fmt;

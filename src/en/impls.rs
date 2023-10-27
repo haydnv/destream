@@ -2,6 +2,7 @@ use std::collections::*;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use futures::stream::Stream;
@@ -353,6 +354,12 @@ encode_map!(BTreeMap<K: Ord, V>);
 encode_map!(HashMap<K: Eq + Hash, V, H: BuildHasher>);
 
 ////////////////////////////////////////////////////////////////////////////////
+
+impl<'en, T: ToStream<'en> + 'en> ToStream<'en> for Arc<T> {
+    fn to_stream<E: Encoder<'en>>(&'en self, encoder: E) -> Result<E::Ok, E::Error> {
+        (&**self).to_stream(encoder)
+    }
+}
 
 impl<'en, T: IntoStream<'en> + 'en> IntoStream<'en> for Box<T> {
     fn into_stream<E: Encoder<'en>>(self, encoder: E) -> Result<E::Ok, E::Error> {
