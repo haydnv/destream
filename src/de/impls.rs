@@ -8,6 +8,8 @@ use bytes::Bytes;
 use futures::future::TryFutureExt;
 use uuid::Uuid;
 
+use crate::IgnoredAny;
+
 use super::size_hint;
 use super::{ArrayAccess, Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
 
@@ -724,9 +726,6 @@ impl FromStream for Uuid {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
-pub struct IgnoredAny;
 
 #[async_trait]
 impl Visitor for IgnoredAny {
