@@ -568,3 +568,6 @@ pub trait Visitor: Send + Sized {
         Err(Error::invalid_type("sequence", Self::expecting()))
     }
 }
+
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+pub struct IgnoredAny;

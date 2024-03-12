@@ -8,6 +8,8 @@ use bytes::Bytes;
 use futures::future::TryFutureExt;
 use uuid::Uuid;
 
+use crate::IgnoredAny;
+
 use super::size_hint;
 use super::{ArrayAccess, Decoder, Error, FromStream, MapAccess, SeqAccess, Visitor};
 
@@ -720,5 +722,135 @@ impl FromStream for Uuid {
 
     async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
         decoder.decode_uuid(UuidVisitor).await
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[async_trait]
+impl Visitor for IgnoredAny {
+    type Value = IgnoredAny;
+
+    fn expecting() -> &'static str {
+        "anything at all"
+    }
+
+    #[inline]
+    fn visit_bool<E>(self, x: bool) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    fn visit_i64<E>(self, x: i64) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    // #[inline]
+    // fn visit_i128<E>(self, x: i128) -> Result<Self::Value, E> {
+    //     let _ = x;
+    //     Ok(IgnoredAny)
+    // }
+
+    #[inline]
+    fn visit_u64<E>(self, x: u64) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    // #[inline]
+    // fn visit_u128<E>(self, x: u128) -> Result<Self::Value, E> {
+    //     let _ = x;
+    //     Ok(IgnoredAny)
+    // }
+
+    #[inline]
+    fn visit_f64<E>(self, x: f64) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let _ = s;
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    fn visit_none<E>(self) -> Result<Self::Value, E> {
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    async fn visit_some<D>(self, deserializer: &mut D) -> Result<Self::Value, D::Error>
+    where
+        D: Decoder,
+    {
+        IgnoredAny::from_stream((), deserializer).await
+    }
+
+    // #[inline]
+    // fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    // where
+    //     D: Decoder,
+    // {
+    //     IgnoredAny::destream(deserializer)
+    // }
+
+    #[inline]
+    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    async fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess,
+    {
+        while let Some(IgnoredAny) = seq.next_element(()).await? {
+            // Gobble
+        }
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    async fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess,
+    {
+        while let Some(IgnoredAny) = map.next_key(()).await? {
+            // Gobble
+            let _ = map.next_value(()).await?;
+        }
+        Ok(IgnoredAny)
+    }
+
+    // #[inline]
+    // fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
+    // where
+    //     E: Error,
+    // {
+    //     let _ = bytes;
+    //     Ok(IgnoredAny)
+    // }
+
+    // fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+    // where
+    //     A: EnumAccess<'de>,
+    // {
+    //     tri!(data.variant::<IgnoredAny>()).1.newtype_variant()
+    // }
+}
+
+#[async_trait]
+impl FromStream for IgnoredAny {
+    type Context = ();
+
+    async fn from_stream<D: Decoder>(_context: (), decoder: &mut D) -> Result<Self, D::Error> {
+        decoder.decode_ignored_any(IgnoredAny).await
     }
 }
