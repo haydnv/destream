@@ -1,6 +1,6 @@
 [package]
 name = "destream"
-version = "0.7.4"
+version = "0.8.0"
 authors = ["code@tinychain.net"]
 edition = "2021"
 license = "Apache-2.0"
@@ -13,8 +13,8 @@ keywords = ["stream", "streaming", "serialize", "deserialize"]
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.21"
+base64 = "0.22"
 bytes = "1.5"
 futures = "0.3"
-smallvec = { version = "1.11", optional = true }
-uuid = "1.6"
+smallvec = { version = "1.13", optional = true }
+uuid = "1.10"
