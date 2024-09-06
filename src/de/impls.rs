@@ -824,8 +824,9 @@ impl Visitor for IgnoredAny {
     {
         while let Some(IgnoredAny) = map.next_key(()).await? {
             // Gobble
-            let _ = map.next_value(()).await?;
+            let _: IgnoredAny = map.next_value(()).await?;
         }
+
         Ok(IgnoredAny)
     }
 
