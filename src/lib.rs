@@ -9,7 +9,8 @@
 //!
 //! [`serde`] is dual-licensed under the MIT and Apache-2.0 licenses, which are available at
 //! [https://github.com/serde-rs/serde/blob/master/LICENSE-MIT](https://github.com/serde-rs/serde/blob/master/LICENSE-MIT)
-//! and [https://github.com/serde-rs/serde/blob/master/LICENSE-APACHE](https://github.com/serde-rs/serde/blob/master/LICENSE-APACHE)
+//! and
+//! [https://github.com/serde-rs/serde/blob/master/LICENSE-APACHE](https://github.com/serde-rs/serde/blob/master/LICENSE-APACHE)
 //! respectively.
 //!
 //! Important differences between `destream` and `serde`:

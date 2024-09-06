@@ -11,6 +11,10 @@ readme = "README.md"
 categories = ["asynchronous", "encoding", "parsing", "rust-patterns"]
 keywords = ["stream", "streaming", "serialize", "deserialize"]
 
+[dev-dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+
 [dependencies]
 async-trait = "0.1"
 base64 = "0.22"
