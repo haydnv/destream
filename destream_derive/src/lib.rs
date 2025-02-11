@@ -9,23 +9,7 @@ pub fn from_stream_derive(input: TokenStream) -> TokenStream {
 
 fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
-    let fields = match &ast.data {
-        syn::Data::Struct(data_struct) => match &data_struct.fields {
-            syn::Fields::Named(fields_named) => &fields_named.named,
-            syn::Fields::Unnamed(_) => {
-                unimplemented!("Unnamed structs are not supported by derive(FromStream)")
-            }
-            syn::Fields::Unit => {
-                unimplemented!("Unit structs are not supported by derive(FromStream)");
-            }
-        },
-        _ => unimplemented!("derive(FromStream) only works on structs"),
-    };
-
-    let fields: Vec<&Ident> = fields
-        .iter()
-        .map(|f| f.ident.as_ref().expect("expected named fields"))
-        .collect();
+    let fields = get_field_names(&ast);
 
     let gen = quote::quote! {
         #[async_trait::async_trait]
@@ -71,4 +55,24 @@ fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
         }
     };
     gen.into()
+}
+
+fn get_field_names(ast: &syn::DeriveInput) -> Vec<&Ident> {
+    let fields = match &ast.data {
+        syn::Data::Struct(data_struct) => match &data_struct.fields {
+            syn::Fields::Named(fields_named) => &fields_named.named,
+            syn::Fields::Unnamed(_) => {
+                unimplemented!("Unnamed structs are not supported by derive(FromStream)")
+            }
+            syn::Fields::Unit => {
+                unimplemented!("Unit structs are not supported by derive(FromStream)");
+            }
+        },
+        _ => unimplemented!("derive(FromStream) only works on structs"),
+    };
+
+    fields
+        .iter()
+        .map(|f| f.ident.as_ref().expect("expected named fields"))
+        .collect()
 }
