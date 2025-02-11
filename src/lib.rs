@@ -35,4 +35,4 @@ pub use en::{
 };
 
 #[cfg(feature = "destream_derive")]
-pub use destream_derive::{FromStream, ToStream};
+pub use destream_derive::FromStream; // TODO: ToStream};
