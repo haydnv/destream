@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use futures::future::TryFutureExt;
 use uuid::Uuid;
@@ -15,7 +14,6 @@ use super::{ArrayAccess, Decoder, Error, FromStream, MapAccess, SeqAccess, Visit
 
 macro_rules! autodecode {
     ($ty:ident, $visit_method:ident, $decode_method:ident) => {
-        #[async_trait]
         impl FromStream for $ty {
             type Context = ();
 
@@ -57,22 +55,20 @@ autodecode!(f32, visit_f32, decode_f32);
 autodecode!(f64, visit_f64, decode_f64);
 autodecode!(String, visit_string, decode_string);
 
-#[async_trait]
 impl FromStream for isize {
     type Context = ();
 
     async fn from_stream<D: Decoder>(cxt: (), decoder: &mut D) -> Result<Self, D::Error> {
-        let n: i64 = FromStream::from_stream(cxt, decoder).await?;
+        let n: i64 = <i64 as FromStream>::from_stream(cxt, decoder).await?;
         n.try_into().map_err(Error::custom)
     }
 }
 
-#[async_trait]
 impl FromStream for usize {
     type Context = ();
 
     async fn from_stream<D: Decoder>(cxt: (), decoder: &mut D) -> Result<Self, D::Error> {
-        let n: u64 = FromStream::from_stream(cxt, decoder).await?;
+        let n: u64 = <u64 as FromStream>::from_stream(cxt, decoder).await?;
         n.try_into().map_err(Error::custom)
     }
 }
@@ -84,7 +80,6 @@ struct OptionVisitor<T: FromStream> {
     marker: PhantomData<T>,
 }
 
-#[async_trait]
 impl<T: FromStream> Visitor for OptionVisitor<T> {
     type Value = Option<T>;
 
@@ -113,7 +108,6 @@ impl<T: FromStream> Visitor for OptionVisitor<T> {
     }
 }
 
-#[async_trait]
 impl<T: FromStream> FromStream for Option<T> {
     type Context = T::Context;
 
@@ -149,7 +143,6 @@ impl<T: Send + ?Sized> Visitor for PhantomDataVisitor<T> {
     }
 }
 
-#[async_trait]
 impl<T: Send + ?Sized> FromStream for PhantomData<T> {
     type Context = ();
 
@@ -173,7 +166,6 @@ macro_rules! decode_seq {
         $reserve:expr,
         $insert:expr
     ) => {
-        #[async_trait]
         impl<T $(, $typaram)*> FromStream for $ty<T $(, $typaram)*>
         where
             T: FromStream $(+ $tbound1 $(+ $tbound2)*)*,
@@ -188,7 +180,6 @@ macro_rules! decode_seq {
                     marker: PhantomData<$ty<T $(, $typaram)*>>,
                 }
 
-                #[async_trait]
                 impl<T $(, $typaram)*> Visitor for SeqVisitor<T::Context, T $(, $typaram)*>
                 where
                     T: FromStream $(+ $tbound1 $(+ $tbound2)*)*,
@@ -274,7 +265,6 @@ decode_seq!(
 );
 
 #[cfg(feature = "smallvec")]
-#[async_trait]
 impl<T: Send, const N: usize> FromStream for smallvec::SmallVec<[T; N]>
 where
     [T; N]: smallvec::Array,
@@ -291,7 +281,6 @@ where
             value: PhantomData<T>,
         }
 
-        #[async_trait]
         impl<T: Send, const N: usize> Visitor for SeqVisitor<T, N>
         where
             [T; N]: smallvec::Array,
@@ -343,7 +332,6 @@ impl<C, T> ArrayVisitor<C, T> {
     }
 }
 
-#[async_trait]
 impl<T: FromStream> Visitor for ArrayVisitor<T::Context, [T; 0]> {
     type Value = [T; 0];
 
@@ -360,7 +348,6 @@ impl<T: FromStream> Visitor for ArrayVisitor<T::Context, [T; 0]> {
     }
 }
 
-#[async_trait]
 impl<T: FromStream> FromStream for [T; 0] {
     type Context = T::Context;
 
@@ -377,7 +364,6 @@ impl<T: FromStream> FromStream for [T; 0] {
 macro_rules! decode_array {
     ($($len:expr => ($($n:tt)+))+) => {
         $(
-            #[async_trait]
             impl<T: FromStream> Visitor for ArrayVisitor<T::Context, [T; $len]>
             where T::Context: Copy
             {
@@ -400,7 +386,6 @@ macro_rules! decode_array {
                 }
             }
 
-            #[async_trait]
             impl<T: FromStream> FromStream for [T; $len] where T::Context: Copy {
                 type Context = T::Context;
 
@@ -457,7 +442,6 @@ decode_array! {
 macro_rules! decode_tuple {
     ($($len:tt => ($($n:tt $name:ident)+))+) => {
         $(
-            #[async_trait]
             impl<$($name: FromStream<Context = ()>),+> FromStream for ($($name,)+) {
                 type Context = ();
 
@@ -466,7 +450,6 @@ macro_rules! decode_tuple {
                         marker: PhantomData<($($name,)+)>,
                     }
 
-                    #[async_trait]
                     #[allow(non_snake_case)]
                     impl<$($name: FromStream<Context = ()>),+> Visitor for TupleVisitor<$($name,)+> {
                         type Value = ($($name,)+);
@@ -521,7 +504,6 @@ macro_rules! decode_map {
         $access:ident,
         $with_capacity:expr
     ) => {
-        #[async_trait]
         impl<K, V $(, $typaram)*> FromStream for $ty<K, V $(, $typaram)*>
         where
             K: FromStream<Context = ()> $(+ $kbound1 $(+ $kbound2)*)*,
@@ -538,7 +520,6 @@ macro_rules! decode_map {
                     marker: PhantomData<$ty<K, V $(, $typaram)*>>,
                 }
 
-                #[async_trait]
                 impl<K, V $(, $typaram)*> Visitor for MapVisitor<K, V $(, $typaram)*>
                 where
                     K: FromStream<Context = ()> $(+ $kbound1 $(+ $kbound2)*)*,
@@ -601,7 +582,6 @@ impl Visitor for UnitVisitor {
     }
 }
 
-#[async_trait]
 impl FromStream for () {
     type Context = ();
 
@@ -614,7 +594,6 @@ impl FromStream for () {
 
 struct BytesVisitor;
 
-#[async_trait]
 impl Visitor for BytesVisitor {
     type Value = Bytes;
 
@@ -664,7 +643,6 @@ impl Visitor for BytesVisitor {
     }
 }
 
-#[async_trait]
 impl FromStream for Bytes {
     type Context = ();
 
@@ -680,7 +658,6 @@ impl FromStream for Bytes {
 
 struct UuidVisitor;
 
-#[async_trait]
 impl Visitor for UuidVisitor {
     type Value = Uuid;
 
@@ -716,7 +693,6 @@ impl Visitor for UuidVisitor {
     }
 }
 
-#[async_trait]
 impl FromStream for Uuid {
     type Context = ();
 
@@ -727,7 +703,6 @@ impl FromStream for Uuid {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[async_trait]
 impl Visitor for IgnoredAny {
     type Value = IgnoredAny;
 
@@ -847,7 +822,6 @@ impl Visitor for IgnoredAny {
     // }
 }
 
-#[async_trait]
 impl FromStream for IgnoredAny {
     type Context = ();
 

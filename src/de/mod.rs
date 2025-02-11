@@ -41,9 +41,7 @@
 //!
 //! Enable support for `SmallVec` using the `smallvec` feature flag.
 
-use std::fmt;
-
-use async_trait::async_trait;
+use std::{fmt, future::Future};
 
 mod impls;
 
@@ -89,7 +87,6 @@ pub trait Error: Send + Sized + std::error::Error {
 /// A data format that can decode a given well-formatted stream using one or more [`Visitor`]s.
 ///
 /// Based on `serde::de::Deserializer`.
-#[async_trait]
 pub trait Decoder: Send {
     /// Type to return in case of a decoding error.
     type Error: Error;
@@ -102,119 +99,210 @@ pub trait Decoder: Send {
     /// Decoder what type is in the input. Know that relying on
     /// `Decoder::decode_any` means your data type will be able to
     /// decode self-describing formats only.
-    async fn decode_any<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_any<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `bool` value.
-    async fn decode_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_bool<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a binary value.
-    async fn decode_bytes<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_bytes<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an `i8` value.
-    async fn decode_i8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_i8<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an `i16` value.
-    async fn decode_i16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_i16<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an `i32` value.
-    async fn decode_i32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_i32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an `i64` value.
-    async fn decode_i64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_i64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `u8` value.
-    async fn decode_u8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_u8<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `u16` value.
-    async fn decode_u16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_u16<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `u32` value.
-    async fn decode_u32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_u32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `u64` value.
-    async fn decode_u64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_u64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `f32` value.
-    async fn decode_f32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_f32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a `f64` value.
-    async fn decode_f64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_f64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `bool`s.
-    async fn decode_array_bool<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_bool<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `i8`s.
-    async fn decode_array_i8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_i8<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `i16`s.
-    async fn decode_array_i16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_i16<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `i32`s.
-    async fn decode_array_i32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_i32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `i64`s.
-    async fn decode_array_i64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_i64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `u8`s.
-    async fn decode_array_u8<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_u8<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `u16`s.
-    async fn decode_array_u16<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_u16<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `u32`s.
-    async fn decode_array_u32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_u32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `u64`s.
-    async fn decode_array_u64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_u64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `f32`s.
-    async fn decode_array_f32<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_f32<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an array of `f64`s.
-    async fn decode_array_f64<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_array_f64<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a map of key-value pairs.
-    async fn decode_map<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_map<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting an optional value.
     ///
     /// This allows decoders that encode an optional value as a nullable
     /// value to convert the null value into `None` and a regular value into
     /// `Some(value)`.
-    async fn decode_option<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_option<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a sequence of values.
-    async fn decode_seq<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_seq<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a string value.
-    async fn decode_string<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_string<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a sequence of values and
     /// knows how many values there are without looking at the encoded data.
-    async fn decode_tuple<V: Visitor>(
+    fn decode_tuple<V: Visitor>(
         &mut self,
         len: usize,
         visitor: V,
-    ) -> Result<V::Value, Self::Error>;
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a unit value (i.e. `()`).
-    async fn decode_unit<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_unit<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type is expecting a [`uuid::Uuid`].
-    async fn decode_uuid<V: Visitor>(&mut self, visitor: V) -> Result<V::Value, Self::Error>;
+    fn decode_uuid<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 
     /// Hint that the [`FromStream`] type needs to decode a value whose type
     /// doesn't matter because it is ignored.
     ///
     /// Decoders for non-self-describing formats may not support this mode.
-    async fn decode_ignored_any<V: Visitor>(&mut self, visitor: V)
-        -> Result<V::Value, Self::Error>;
+    fn decode_ignored_any<V: Visitor>(
+        &mut self,
+        visitor: V,
+    ) -> impl Future<Output = Result<V::Value, Self::Error>> + Send;
 }
 
 /// This trait describes a value which can be decoded from a stream.
 ///
 /// Based on `serde::de::Deserialize`.
-#[async_trait]
 pub trait FromStream: Send + Sized {
     /// The decoding context of this type, useful in situations where the stream to be decoded
     /// may be too large to hold in main memory.
@@ -223,23 +311,25 @@ pub trait FromStream: Send + Sized {
     type Context: Send;
 
     /// Parse this value using the given `Decoder`.
-    async fn from_stream<D: Decoder>(
+    fn from_stream<D: Decoder>(
         context: Self::Context,
         decoder: &mut D,
-    ) -> Result<Self, D::Error>;
+    ) -> impl Future<Output = Result<Self, D::Error>> + Send;
 }
 
 /// Provides a [`Visitor`] with access to an array of type `T`.
 ///
 /// This is a trait that a [`Decoder`] passes to a `Visitor` implementation.
-#[async_trait]
 pub trait ArrayAccess<T>: Send {
     type Error: Error;
 
     /// Write array values from the stream being decoded into the given `buffer`.
     ///
     /// Returns the number of values written (this will be in the range `0..buffer.len()`).
-    async fn buffer(&mut self, buffer: &mut [T]) -> Result<usize, Self::Error>;
+    fn buffer(
+        &mut self,
+        buffer: &mut [T],
+    ) -> impl Future<Output = Result<usize, Self::Error>> + Send;
 }
 
 /// Provides a [`Visitor`] with access to each entry of a map in the input.
@@ -247,7 +337,6 @@ pub trait ArrayAccess<T>: Send {
 /// This is a trait that a [`Decoder`] passes to a `Visitor` implementation.
 ///
 /// Based on `serde::de::MapAccess`.
-#[async_trait]
 pub trait MapAccess: Send {
     /// Type to return in case of a decoding error.
     type Error: Error;
@@ -257,10 +346,10 @@ pub trait MapAccess: Send {
     ///
     /// `context` is the decoder context used by `K`'s [`FromStream`] impl.
     /// If `K` is small enough to fit in main memory, pass the unit context `()`.
-    async fn next_key<K: FromStream>(
+    fn next_key<K: FromStream>(
         &mut self,
         context: K::Context,
-    ) -> Result<Option<K>, Self::Error>;
+    ) -> impl Future<Output = Result<Option<K>, Self::Error>> + Send;
 
     /// This returns `Ok(value)` for the next value in the map.
     ///
@@ -271,7 +360,10 @@ pub trait MapAccess: Send {
     ///
     /// Calling `next_value` before `next_key` is incorrect and is allowed to
     /// panic or return bogus results.
-    async fn next_value<V: FromStream>(&mut self, context: V::Context) -> Result<V, Self::Error>;
+    fn next_value<V: FromStream>(
+        &mut self,
+        context: V::Context,
+    ) -> impl Future<Output = Result<V, Self::Error>> + Send;
 
     /// Returns the number of entries remaining in the map, if known.
     #[inline]
@@ -286,7 +378,6 @@ pub trait MapAccess: Send {
 /// which decodes each item in a sequence.
 ///
 /// Based on `serde::de::SeqAccess`.
-#[async_trait]
 pub trait SeqAccess: Send {
     /// The type to return if decoding encounters an error.
     type Error: Error;
@@ -296,21 +387,26 @@ pub trait SeqAccess: Send {
     ///
     /// `context` is the decoder context used by `T`'s [`FromStream`] impl.
     /// If `T` is small enough to fit in main memory, pass the unit context `()`.
-    async fn next_element<T: FromStream>(
+    fn next_element<T: FromStream>(
         &mut self,
         context: T::Context,
-    ) -> Result<Option<T>, Self::Error>;
+    ) -> impl Future<Output = Result<Option<T>, Self::Error>> + Send;
 
     /// Returns `Ok(Some(value))` for the next value in the sequence,
     /// or an error if there is no next item or it's not the required type.
     ///
     /// `context` is the decoder context used by `T`'s [`FromStream`] impl.
     /// If `T` is small enough to fit in main memory, pass the unit context `()`.
-    async fn expect_next<T: FromStream>(&mut self, context: T::Context) -> Result<T, Self::Error> {
-        if let Some(element) = self.next_element(context).await? {
-            Ok(element)
-        } else {
-            Err(Error::custom("expected sequence element is missing"))
+    fn expect_next<T: FromStream>(
+        &mut self,
+        context: T::Context,
+    ) -> impl Future<Output = Result<T, Self::Error>> + Send {
+        async {
+            if let Some(element) = self.next_element(context).await? {
+                Ok(element)
+            } else {
+                Err(Error::custom("expected sequence element is missing"))
+            }
         }
     }
 
@@ -324,7 +420,6 @@ pub trait SeqAccess: Send {
 /// This trait describes a visitor responsible for decoding a stream.
 ///
 /// Based on `serde::de::Visitor`.
-#[async_trait]
 pub trait Visitor: Send + Sized {
     /// The type which this [`Visitor`] is responsible for decoding.
     type Value;
@@ -439,91 +534,121 @@ pub trait Visitor: Send + Sized {
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_bool<A: ArrayAccess<bool>>(
+    fn visit_array_bool<A: ArrayAccess<bool>>(
         self,
         array: A,
-    ) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("boolean array", Self::expecting()))
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("boolean array", Self::expecting())) }
     }
 
     /// The input contains an array of `i8`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_i8<A: ArrayAccess<i8>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("i8 array", Self::expecting()))
+    fn visit_array_i8<A: ArrayAccess<i8>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("i8 array", Self::expecting())) }
     }
 
     /// The input contains an array of `i16`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_i16<A: ArrayAccess<i16>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("i16 array", Self::expecting()))
+    fn visit_array_i16<A: ArrayAccess<i16>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("i16 array", Self::expecting())) }
     }
 
     /// The input contains an array of `i32`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_i32<A: ArrayAccess<i32>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("i32 array", Self::expecting()))
+    fn visit_array_i32<A: ArrayAccess<i32>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("i32 array", Self::expecting())) }
     }
 
     /// The input contains an array of `i64`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_i64<A: ArrayAccess<i64>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("i64 array", Self::expecting()))
+    fn visit_array_i64<A: ArrayAccess<i64>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("i64 array", Self::expecting())) }
     }
 
     /// The input contains an array of `u8`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_u8<A: ArrayAccess<u8>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("u8 array", Self::expecting()))
+    fn visit_array_u8<A: ArrayAccess<u8>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("u8 array", Self::expecting())) }
     }
 
     /// The input contains an array of `u16`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_u16<A: ArrayAccess<u16>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("u16 array", Self::expecting()))
+    fn visit_array_u16<A: ArrayAccess<u16>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("u16 array", Self::expecting())) }
     }
 
     /// The input contains an array of `u32`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_u32<A: ArrayAccess<u32>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("u32 array", Self::expecting()))
+    fn visit_array_u32<A: ArrayAccess<u32>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("u32 array", Self::expecting())) }
     }
 
     /// The input contains an array of `u64`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_u64<A: ArrayAccess<u64>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("u64 array", Self::expecting()))
+    fn visit_array_u64<A: ArrayAccess<u64>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("u64 array", Self::expecting())) }
     }
 
     /// The input contains an array of `f32`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_f32<A: ArrayAccess<f32>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("f32 array", Self::expecting()))
+    fn visit_array_f32<A: ArrayAccess<f32>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("f32 array", Self::expecting())) }
     }
 
     /// The input contains an array of `f64`s.
     ///
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_array_f64<A: ArrayAccess<f64>>(self, array: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("f64 array", Self::expecting()))
+    fn visit_array_f64<A: ArrayAccess<f64>>(
+        self,
+        array: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("f64 array", Self::expecting())) }
     }
 
     /// The input contains a string and ownership of the string is being given
@@ -550,22 +675,31 @@ pub trait Visitor: Send + Sized {
     /// The input contains an optional that is present.
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_some<D: Decoder>(self, decoder: &mut D) -> Result<Self::Value, D::Error> {
-        Err(Error::invalid_type("Option::Some", Self::expecting()))
+    fn visit_some<D: Decoder>(
+        self,
+        decoder: &mut D,
+    ) -> impl Future<Output = Result<Self::Value, D::Error>> + Send {
+        async { Err(Error::invalid_type("Option::Some", Self::expecting())) }
     }
 
     /// The input contains a key-value map.
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_map<A: MapAccess>(self, map: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("map", Self::expecting()))
+    fn visit_map<A: MapAccess>(
+        self,
+        map: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("map", Self::expecting())) }
     }
 
     /// The input contains a sequence of elements.
     /// The default implementation fails with a type error.
     #[allow(unused_variables)]
-    async fn visit_seq<A: SeqAccess>(self, seq: A) -> Result<Self::Value, A::Error> {
-        Err(Error::invalid_type("sequence", Self::expecting()))
+    fn visit_seq<A: SeqAccess>(
+        self,
+        seq: A,
+    ) -> impl Future<Output = Result<Self::Value, A::Error>> + Send {
+        async { Err(Error::invalid_type("sequence", Self::expecting())) }
     }
 }
 
