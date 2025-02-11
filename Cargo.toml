@@ -22,3 +22,4 @@ bytes = "1.5"
 futures = "0.3"
 smallvec = { version = "1.13", optional = true }
 uuid = "1.10"
+destream_derive = { path = "destream_derive", optional = true }
