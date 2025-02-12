@@ -14,7 +14,7 @@ async-trait = "0.1.86"
 
 [dev-dependencies]
 destream = {path = ".."}
-destream_json = {path = "../../destream_json" }
+destream_json = "0.12"
 futures = "0.3.31"
 futures-core = "0.3.31"
 tokio-util = { version = "0.7.13", features = ["io"] }
