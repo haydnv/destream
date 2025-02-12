@@ -1,6 +1,6 @@
 [package]
 name = "destream"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["code@tinychain.net"]
 edition = "2021"
 license = "Apache-2.0"
