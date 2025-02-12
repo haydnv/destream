@@ -14,7 +14,11 @@ fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
         .iter()
         .map(|f| {
             let original = f.to_string();
-            let transformed = original.replace('_', "");
+            // skip leading underscores
+            let transformed = match original.chars().nth(0).unwrap() {
+                '_' => original[1..].to_string(),
+                _ => original,
+            };
             syn::LitStr::new(&transformed, f.span())
         })
         .collect();
