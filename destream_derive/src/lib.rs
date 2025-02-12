@@ -46,7 +46,7 @@ fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
                                 #(
                                     #field_names => #fields = map.next_value(()).await?,
                                 )*
-                                _ => unimplemented!()
+                                s => panic!("Unknown field! {}", s)
                             }
 
                         }
