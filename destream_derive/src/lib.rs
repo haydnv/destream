@@ -10,6 +10,14 @@ pub fn from_stream_derive(input: TokenStream) -> TokenStream {
 fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let fields = get_field_names(&ast);
+    let field_names: Vec<syn::LitStr> = fields
+        .iter()
+        .map(|f| {
+            let original = f.to_string();
+            let transformed = original.replace('_', "");
+            syn::LitStr::new(&transformed, f.span())
+        })
+        .collect();
 
     let gen = quote::quote! {
         #[async_trait::async_trait]
@@ -36,7 +44,7 @@ fn impl_from_stream(ast: &syn::DeriveInput) -> TokenStream {
                         while let Some(key) = map.next_key::<String>(()).await? {
                             match key.as_str() {
                                 #(
-                                    stringify!(#fields) => #fields = map.next_value(()).await?,
+                                    #field_names => #fields = map.next_value(()).await?,
                                 )*
                                 _ => unimplemented!()
                             }
