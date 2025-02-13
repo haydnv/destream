@@ -16,9 +16,9 @@ num-bigint = "0.4"
 num-traits = "0.2"
 
 [dependencies]
-async-trait = "0.1"
 base64 = "0.22"
 bytes = "1.5"
 futures = "0.3"
 smallvec = { version = "1.13", optional = true }
+trait-variant = "0.1.2"
 uuid = "1.10"
