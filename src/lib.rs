@@ -33,3 +33,6 @@ pub use de::{ArrayAccess, Decoder, FromStream, IgnoredAny, MapAccess, SeqAccess,
 pub use en::{
     EncodeMap, EncodeSeq, EncodeTuple, Encoder, IntoStream, MapStream, SeqStream, ToStream,
 };
+
+#[cfg(feature = "destream_derive")]
+pub use destream_derive::FromStream; // TODO: ToStream};

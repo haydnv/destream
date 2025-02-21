@@ -1,0 +1,20 @@
+[package]
+name = "destream_derive"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+tokio = { version = "1.43", features = ["macros", "rt"] }
+async-trait = "0.1.86"
+
+[dev-dependencies]
+destream = {path = "..", features = ["destream_derive"]}
+destream_json = {path="../../destream_json"}
+futures = "0.3.31"
+futures-core = "0.3.31"
+tokio-util = { version = "0.7.13", features = ["io"] }
